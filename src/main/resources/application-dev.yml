@@ -1,0 +1,16 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    # 도커가 3307 포트로 떠 있으므로 3307로 지정
+    url: jdbc:mysql://localhost:3307/reactpj?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: appuser
+    password: apppass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update  # 개발 편의상 테이블 자동 생성/수정
+    show-sql: true      # 쿼리 로그 보기

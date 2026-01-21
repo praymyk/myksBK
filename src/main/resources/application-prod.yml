@@ -1,0 +1,16 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: jdbc:mysql://mykspj-mysql.cvacmycywd6n.ap-southeast-2.rds.amazonaws.com:3306/reactpj?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: admin
+    password: dhksthghdck2
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      # 운영 DB는 절대 건드리지 않음 (검증만 수행)
+      ddl-auto: validate
+    show-sql: false
