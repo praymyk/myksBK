@@ -30,6 +30,6 @@ public class AuthController {
         }
     }
 
-    // 간단한 에러 응답용 record
+    // 에러 응답용 record
     record ErrorResponse(String message) {}
 }

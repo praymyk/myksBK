@@ -14,5 +14,9 @@ spring:
         options:
           model: gpt-4o
 
+# 개발 서버 포트 설정
+server:
+  port: 8081
+
 # 배포 실행 명령어 예시
 # java -jar -Dspring.profiles.active=prod myksBK-server.jar

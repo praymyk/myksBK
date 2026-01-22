@@ -5,10 +5,10 @@ import lombok.Data;
 
 public class AuthDto {
 
-    // 1. 로그인 요청 (Request)
+    // 1. 로그인 요청
     public record LoginRequest(String username, String password) {}
 
-    // 2. 로그인 응답 (Response) - 리액트가 받는 구조 그대로
+    // 2. 로그인 응답 - 리액트가 받는 구조
     @Data
     @Builder
     public static class LoginResponse {
