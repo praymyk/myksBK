@@ -40,7 +40,7 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "varchar(20) default 'active'")
-    private UserStatus status; // ENUM 처리
+    private UserStatus status;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
