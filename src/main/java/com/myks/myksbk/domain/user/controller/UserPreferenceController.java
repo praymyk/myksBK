@@ -19,22 +19,26 @@ public class UserPreferenceController {
     // GET 요청
     @GetMapping
     public ResponseEntity<?> getPreferences(@AuthenticationPrincipal Long userId) {
-        // userId: 로그인한 유저의 ID가 자동으로 들어옵니다. (로그인 안했으면 null)
-
         if (userId == null) {
             return ResponseEntity.status(401).body(Map.of("message", "인증 실패"));
         }
-
         UserPreferenceDto.Response response = preferenceService.getPreferences(userId);
         return ResponseEntity.ok(response);
     }
 
     // POST 요청
     @PostMapping
-    public ResponseEntity<?> updatePreferences(@RequestBody UserPreferenceDto.UpdateRequest request) {
-        Long currentUserId = 1L; // [임시] 로그인 구현 후 교체 필요!
+    public ResponseEntity<?> updatePreferences(
+            @AuthenticationPrincipal Long userId,
+            @RequestBody UserPreferenceDto.UpdateRequest request
+    ) {
+        // 2. 로그인 안 된 경우 방어
+        if (userId == null) {
+            return ResponseEntity.status(401).body(Map.of("message", "로그인이 필요합니다."));
+        }
 
-        preferenceService.upsertPreferences(currentUserId, request);
+        preferenceService.upsertPreferences(userId, request);
+
         return ResponseEntity.ok(Map.of("ok", true));
     }
 }

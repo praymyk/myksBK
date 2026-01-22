@@ -10,6 +10,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsUtils;
 
 @Configuration
 @EnableWebSecurity
@@ -23,7 +24,7 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        // Next.js의 bcryptjs와 호환되는 BCrypt 인코더
+
         return new BCryptPasswordEncoder();
     }
 
@@ -32,10 +33,11 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable) // REST API이므로 CSRF 끔
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login").permitAll() // 로그인 API는 누구나 접근 가능
-                        .anyRequest().authenticated() // 나머지는 인증 필요
+                        .requestMatchers("/api/auth/login").permitAll() // 로그인 API OPEN
+                        .requestMatchers(CorsUtils::isPreFlightRequest).permitAll() // Preflight(OPTIONS) 요청 OPEN
+                        .anyRequest().authenticated() // 나머지는 인증
                 )
-                // ★ 여기에 필터 추가 (UsernamePasswordAuthenticationFilter 앞에 실행)
+                // ★ 필터 추가 (UsernamePasswordAuthenticationFilter 앞 실행)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
