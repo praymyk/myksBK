@@ -54,6 +54,7 @@ public class AuthService {
                 .token(accessToken)
                 .user(AuthDto.UserInfo.builder()
                         .id(user.getId())
+                        .companyId(user.getCompanyId())
                         .name(user.getName())
                         .profileName(user.getProfileName())
                         .email(user.getEmail())

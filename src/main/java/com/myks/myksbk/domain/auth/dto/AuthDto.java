@@ -22,6 +22,7 @@ public class AuthDto {
     @Builder
     public static class UserInfo {
         private Long id;
+        private Long companyId;
         private String name;
         private String profileName;
         private String email;
