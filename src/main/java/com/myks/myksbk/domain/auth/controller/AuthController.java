@@ -4,6 +4,8 @@ import com.myks.myksbk.domain.auth.dto.AuthDto;
 import com.myks.myksbk.domain.auth.dto.LoginResult;
 import com.myks.myksbk.domain.auth.service.AuthService;
 import com.myks.myksbk.domain.user.domain.User;
+import com.myks.myksbk.domain.user.domain.UserPreference;
+import com.myks.myksbk.domain.user.repository.UserPreferenceRepository;
 import com.myks.myksbk.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -21,6 +23,7 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserRepository userRepository;
+    private final UserPreferenceRepository userPreferenceRepository;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthDto.LoginRequest request) {
@@ -59,21 +62,30 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<AuthDto.UserInfo> me(@AuthenticationPrincipal Long userId) {
+    public ResponseEntity<AuthDto.LoginResponse> me(@AuthenticationPrincipal Long userId) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 
-        AuthDto.UserInfo info = AuthDto.UserInfo.builder()
-                .id(user.getId())
-                .companyId(user.getCompanyId())
-                .name(user.getName())
-                .profileName(user.getProfileName())
-                .email(user.getEmail())
-                .extension(user.getExtension())
+        boolean darkMode = userPreferenceRepository.findByUserId(userId)
+                .map(UserPreference::isDarkMode)
+                .orElse(false);
+
+        AuthDto.LoginResponse body = AuthDto.LoginResponse.builder()
+                .user(AuthDto.UserInfo.builder()
+                        .id(user.getId())
+                        .companyId(user.getCompanyId())
+                        .name(user.getName())
+                        .profileName(user.getProfileName())
+                        .email(user.getEmail())
+                        .extension(user.getExtension())
+                        .build())
+                .preferences(AuthDto.UserPreferences.builder()
+                        .darkMode(darkMode)
+                        .build())
                 .build();
 
-        return ResponseEntity.ok(info);
+        return ResponseEntity.ok(body);
     }
 
     // 에러 응답용 record
