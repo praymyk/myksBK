@@ -36,35 +36,34 @@ public class CustomerService {
 
     public Page<CustomerDto.Response> searchCustomers(CustomerSearchCondition condition, Pageable pageable) {
 
-        // 1. 동적 쿼리(Specification)
-        Specification<Customer> spec = (root, query, cb) -> {
+        Specification<Customer> spec = (root, query, cb) -> cb.conjunction();
 
-            Specification<Customer> result = Specification.where((Specification<Customer>) null);
+        // companyId는 필수)
+        if (condition.getCompanyId() != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("companyId"), condition.getCompanyId())
+            );
+        }
 
-            // A. 키워드 검색
-            if (StringUtils.hasText(condition.getKeyword())) {
-                String likePattern = "%" + condition.getKeyword().trim() + "%";
+        // A. 키워드 검색
+        if (StringUtils.hasText(condition.getKeyword())) {
+            String likePattern = "%" + condition.getKeyword().trim() + "%";
+            spec = spec.and((root, query, cb) ->
+                    cb.or(
+                            cb.like(root.get("name"), likePattern),
+                            cb.like(root.get("email"), likePattern)
+                    )
+            );
+        }
 
-                result = result.and((root2, query2, cb2) ->
-                        cb2.or(
-                                cb2.like(root2.get("name"), likePattern),
-                                cb2.like(root2.get("email"), likePattern)
-                        )
-                );
-            }
+        // B. 상태 필터
+        if (condition.getStatus() != null) {
+            spec = spec.and((root, query, cb) ->
+                    cb.equal(root.get("status"), condition.getStatus())
+            );
+        }
 
-            // B. 상태 필터
-            if (condition.getStatus() != null) {
-                result = result.and((root2, query2, cb2) ->
-                        cb2.equal(root2.get("status"), condition.getStatus())
-                );
-            }
-
-            return result.toPredicate(root, query, cb);
-        };
-
-        Page<Customer> customerPage = customerRepository.findAll(spec, pageable);
-
-        return customerPage.map(CustomerDto.Response::from);
+        return customerRepository.findAll(spec, pageable)
+                .map(CustomerDto.Response::from);
     }
 }

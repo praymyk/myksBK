@@ -7,6 +7,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class CustomerSearchCondition {  // 검색조건 관리용
+    private Long companyId;
     private String keyword;
     private CustomerStatus status;
 }

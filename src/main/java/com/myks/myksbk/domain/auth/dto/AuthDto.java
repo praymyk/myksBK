@@ -8,12 +8,11 @@ public class AuthDto {
     // 1. 로그인 요청
     public record LoginRequest(String username, String password) {}
 
-    // 2. 로그인 응답 - 리액트가 받는 구조
+    // 2. 로그인 응답
     @Data
     @Builder
     public static class LoginResponse {
         private String message;
-        private String token;
         private UserInfo user;
         private UserPreferences preferences;
     }

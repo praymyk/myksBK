@@ -40,7 +40,7 @@ public class SecurityConfig {
 
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
                         // CorsUtils 줄은 이제 필요 없습니다. (.cors()가 알아서 처리함)
                         .anyRequest().authenticated()
                 )

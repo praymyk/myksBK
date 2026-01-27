@@ -21,7 +21,7 @@ public class CustomerDto {
     @Builder
     public static class Response {
         private Long id;
-        private Long comapnyId;
+        private Long companyId;
         private String name;
         private String email;
         private String status;
@@ -30,7 +30,7 @@ public class CustomerDto {
         public static Response from(Customer entity) {
             return Response.builder()
                     .id(entity.getId())
-                    .comapnyId(entity.getCompanyId())
+                    .companyId(entity.getCompanyId())
                     .name(entity.getName())
                     .email(entity.getEmail())
                     .status(entity.getStatus().name())

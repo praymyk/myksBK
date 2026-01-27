@@ -1,12 +1,10 @@
 package com.myks.myksbk.global.jwt;
 
-import com.myks.myksbk.global.config.SecurityConfig;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -31,9 +29,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = getJwtFromRequest(request);
 
         // 2. 토큰 유효 체크
-        if (StringUtils.hasText(token) && tokenProvider.validateToken(token)) {
+        if (StringUtils.hasText(token)
+                && tokenProvider.validateToken(token)
+                && tokenProvider.validateTokenType(token, "access")) {
 
-            Long userId = tokenProvider.getUserIdFromToken(token);
+            Long userId = tokenProvider.getUserId(token);
 
             /*
              * TODO: Principal 객체화 + roles 확장 준비 ( 권한등 인증 정보 추가 )
@@ -70,9 +70,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     // 헤더에서 Bearer 토큰 추출
     private String getJwtFromRequest(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
+        // 1) Authorization 헤더 우선
+        String bearer = request.getHeader("Authorization");
+        if (StringUtils.hasText(bearer) && bearer.startsWith("Bearer ")) {
+            return bearer.substring(7);
+        }
+        // 2) accessToken 쿠키 fallback
+        if (request.getCookies() != null) {
+            for (var c : request.getCookies()) {
+                if ("accessToken".equals(c.getName())) {
+                    return c.getValue();
+                }
+            }
         }
         return null;
     }

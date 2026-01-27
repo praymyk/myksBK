@@ -5,53 +5,86 @@ import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
 @Component
 public class JwtTokenProvider {
 
-    // 비밀키는 실무에선 application.yml에서 가져와야 하지만, 지금은 하드코딩으로 예시를 듭니다.
-    // 32글자 이상이어야 안전합니다.
-    private final String SECRET_KEY = "myks-secret-key-for-jwt-must-be-very-long-and-secure";
-    private final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
+    private final Key key;
+    private final long accessExpMs;
+    private final long refreshExpMs;
+    private final String issuer;
 
-    private final long EXPIRATION_MS = 1000 * 60 * 60 * 24; // 24시간
+    public JwtTokenProvider(
+            @Value("${jwt.secret}") String secret,
+            @Value("${jwt.access-exp-ms}") long accessExpMs,
+            @Value("${jwt.refresh-exp-ms}") long refreshExpMs,
+            @Value("${jwt.issuer}") String issuer
+    ) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.accessExpMs = accessExpMs;
+        this.refreshExpMs = refreshExpMs;
+        this.issuer = issuer;
+    }
 
-    // 1. 토큰 생성
-    public String createToken(Long userId, String email) {
+    public String createAccessToken(Long userId, String email) {
+        return createToken(userId, email, "access", accessExpMs);
+    }
+
+    public String createRefreshToken(Long userId, String email) {
+        return createToken(userId, email, "refresh", refreshExpMs);
+    }
+
+    private String createToken(Long userId, String email, String typ, long expMs) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + EXPIRATION_MS);
+        Date exp = new Date(now.getTime() + expMs);
 
         return Jwts.builder()
-                .setSubject(String.valueOf(userId)) // 주제(Subject)에 userId 저장
-                .claim("email", email)              // 추가 정보 저장
+                .setIssuer(issuer)
+                .setSubject(String.valueOf(userId))
+                .claim("email", email)
+                .claim("typ", typ)
                 .setIssuedAt(now)
-                .setExpiration(expiryDate)
+                .setExpiration(exp)
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // 2. 토큰에서 userId 추출
-    public Long getUserIdFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
+    public Claims parseClaims(String token) {
+        return Jwts.parserBuilder().setSigningKey(key).build()
                 .parseClaimsJws(token)
                 .getBody();
-
-        return Long.parseLong(claims.getSubject());
     }
 
-    // 3. 토큰 유효성 검사
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            parseClaims(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
+    }
+
+    public boolean validateTokenType(String token, String expectedTyp) {
+        try {
+            Claims c = parseClaims(token);
+            String typ = c.get("typ", String.class);
+            return expectedTyp.equals(typ);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public Long getUserId(String token) {
+        return Long.parseLong(parseClaims(token).getSubject());
+    }
+
+    public String getEmail(String token) {
+        return parseClaims(token).get("email", String.class);
     }
 }
