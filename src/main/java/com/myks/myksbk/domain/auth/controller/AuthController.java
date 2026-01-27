@@ -61,6 +61,30 @@ public class AuthController {
         }
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() {
+        ResponseCookie clearAccess = ResponseCookie.from("accessToken", "")
+                .httpOnly(true)
+                .secure(false)       // 운영 https면 true
+                .sameSite("Lax")     // 운영 cross-site면 None + secure(true)
+                .path("/")
+                .maxAge(0)
+                .build();
+
+        ResponseCookie clearRefresh = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(false)
+                .sameSite("Lax")
+                .path("/")
+                .maxAge(0)
+                .build();
+
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, clearAccess.toString())
+                .header(HttpHeaders.SET_COOKIE, clearRefresh.toString())
+                .build();
+    }
+
     @GetMapping("/me")
     public ResponseEntity<AuthDto.LoginResponse> me(@AuthenticationPrincipal Long userId) {
 
