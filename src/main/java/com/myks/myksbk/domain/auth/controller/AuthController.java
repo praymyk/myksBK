@@ -65,8 +65,8 @@ public class AuthController {
     public ResponseEntity<Void> logout() {
         ResponseCookie clearAccess = ResponseCookie.from("accessToken", "")
                 .httpOnly(true)
-                .secure(false)       // 운영 https면 true
-                .sameSite("Lax")     // 운영 cross-site면 None + secure(true)
+                .secure(false)      // 운영 https면 true
+                .sameSite("Lax")    // 운영 cross-site면 None + secure(true)
                 .path("/")
                 .maxAge(0)
                 .build();
