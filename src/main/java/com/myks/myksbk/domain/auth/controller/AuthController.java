@@ -32,8 +32,9 @@ public class AuthController {
 
             ResponseCookie accessCookie = ResponseCookie.from("accessToken", result.accessToken())
                     .httpOnly(true)
-                    .secure(false)    // TODO : 운영 https면 true로
-                    .sameSite("Lax")  // 운영 cross-site면 None + secure(true)
+                    .secure(true)    // TODO : 운영 https면 true로
+                    .sameSite("None")  // 운영 cross-site면 None + secure(true)
+                    .domain(".qqup.ai.kr")
                     .path("/")
                     .maxAge(Duration.ofMinutes(30))
                     .build();
@@ -41,8 +42,9 @@ public class AuthController {
             ResponseCookie refreshCookie = ResponseCookie
                     .from("refreshToken", result.refreshToken())
                     .httpOnly(true)
-                    .secure(false)        // TODO : 운영 https면 true로
-                    .sameSite("Lax")      // 운영 cross-site면 None + secure(true)
+                    .secure(true)        // TODO : 운영 https면 true로
+                    .sameSite("None")      // 운영 cross-site면 None + secure(true)
+                    .domain(".qqup.ai.kr")
                     .path("/")
                     .maxAge(Duration.ofMinutes(30))
                     .build();
