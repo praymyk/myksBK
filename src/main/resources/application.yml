@@ -3,6 +3,9 @@ spring:
     name: myksBK
   profiles:
     active: dev
+    config:
+      activate:
+        on-profile: default # 로컬에서 실행 시
 
   ai:
     openai:

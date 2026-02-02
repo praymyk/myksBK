@@ -8,15 +8,18 @@ import com.myks.myksbk.domain.user.domain.UserPreference;
 import com.myks.myksbk.domain.user.repository.UserPreferenceRepository;
 import com.myks.myksbk.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.util.StringUtils;
 
 import java.time.Duration;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -26,8 +29,8 @@ public class AuthController {
     private final UserRepository userRepository;
     private final UserPreferenceRepository userPreferenceRepository;
 
-    //설정값 주입받기
-    @Value("${jwt.cookie.domain}")
+    // --- [설정값 주입] ---
+    @Value("${jwt.cookie.domain:}") // 값이 없으면 null/빈 문자열 처리
     private String cookieDomain;
 
     @Value("${jwt.cookie.secure}")
@@ -36,60 +39,36 @@ public class AuthController {
     @Value("${jwt.cookie.samesite}")
     private String cookieSameSite;
 
+    // 로그인
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthDto.LoginRequest request) {
         try {
             LoginResult result = authService.login(request);
 
-            ResponseCookie accessCookie = ResponseCookie.from("accessToken", result.accessToken())
-                    .httpOnly(true)
-                    .secure(cookieSecure)       // 로컬: false, 운영: true
-                    .sameSite(cookieSameSite)   // 로컬: Lax, 운영: None
-                    .path("/")
-                    .maxAge(Duration.ofMinutes(30))
-                    .domain(cookieDomain)       // 로컬: null, 운영: .qqup.ai.kr
-                    .build();
+            // 공통 메서드로 쿠키 생성 (중복 제거)
+            ResponseCookie accessCookie = createCookie("accessToken", result.accessToken(), Duration.ofMinutes(30));
+            ResponseCookie refreshCookie = createCookie("refreshToken", result.refreshToken(), Duration.ofDays(14));
 
-            ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", result.refreshToken())
-                    .httpOnly(true)
-                    .secure(cookieSecure)
-                    .sameSite(cookieSameSite)
-                    .path("/")
-                    .maxAge(Duration.ofDays(14))
-                    .domain(cookieDomain)
-                    .build();
-
-            // body에는 accessToken을 내려줌 (프론트는 메모리에만 저장)
             return ResponseEntity.ok()
                     .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
                     .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
                     .body(result.response());
 
         } catch (IllegalArgumentException | IllegalStateException e) {
+            log.warn("Login failed: {}", e.getMessage());
             return ResponseEntity.status(401).body(new ErrorResponse(e.getMessage()));
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Login Error", e);
             return ResponseEntity.status(500).body(new ErrorResponse("로그인 처리 중 오류가 발생했습니다."));
         }
     }
 
+    // 로그아웃
     @PostMapping("/logout")
     public ResponseEntity<Void> logout() {
-        ResponseCookie clearAccess = ResponseCookie.from("accessToken", "")
-                .httpOnly(true)
-                .secure(false)      // 운영 https면 true
-                .sameSite("Lax")    // 운영 cross-site면 None + secure(true)
-                .path("/")
-                .maxAge(0)
-                .build();
 
-        ResponseCookie clearRefresh = ResponseCookie.from("refreshToken", "")
-                .httpOnly(true)
-                .secure(false)
-                .sameSite("Lax")
-                .path("/")
-                .maxAge(0)
-                .build();
+        ResponseCookie clearAccess = createCookie("accessToken", "", Duration.ZERO);
+        ResponseCookie clearRefresh = createCookie("refreshToken", "", Duration.ZERO);
 
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, clearAccess.toString())
@@ -97,6 +76,7 @@ public class AuthController {
                 .build();
     }
 
+    // 내 정보 조회
     @GetMapping("/me")
     public ResponseEntity<AuthDto.LoginResponse> me(@AuthenticationPrincipal Long userId) {
 
@@ -124,6 +104,22 @@ public class AuthController {
         return ResponseEntity.ok(body);
     }
 
-    // 에러 응답용 record
+    // 쿠키 생성 메서드
+    private ResponseCookie createCookie(String name, String value, Duration maxAge) {
+        ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
+                .httpOnly(true)
+                .secure(cookieSecure)       // 환경변수 적용
+                .sameSite(cookieSameSite)   // 환경변수 적용
+                .path("/")
+                .maxAge(maxAge);
+
+        // 로컬 환경 등에서 domain 값이 없을 경우, 아예 설정을 안 해야(null) 브라우저가 localhost로 인식함
+        if (StringUtils.hasText(cookieDomain)) {
+            builder.domain(cookieDomain);
+        }
+
+        return builder.build();
+    }
+
     record ErrorResponse(String message) {}
 }
