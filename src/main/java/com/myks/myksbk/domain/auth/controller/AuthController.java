@@ -8,6 +8,7 @@ import com.myks.myksbk.domain.user.domain.UserPreference;
 import com.myks.myksbk.domain.user.repository.UserPreferenceRepository;
 import com.myks.myksbk.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,16 @@ public class AuthController {
     private final UserRepository userRepository;
     private final UserPreferenceRepository userPreferenceRepository;
 
+    //설정값 주입받기
+    @Value("${jwt.cookie.domain}")
+    private String cookieDomain;
+
+    @Value("${jwt.cookie.secure}")
+    private boolean cookieSecure;
+
+    @Value("${jwt.cookie.samesite}")
+    private String cookieSameSite;
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthDto.LoginRequest request) {
         try {
@@ -32,21 +43,20 @@ public class AuthController {
 
             ResponseCookie accessCookie = ResponseCookie.from("accessToken", result.accessToken())
                     .httpOnly(true)
-                    .secure(true)    // TODO : 운영 https면 true로
-                    .sameSite("None")  // 운영 cross-site면 None + secure(true)
-                    .domain(".qqup.ai.kr")
+                    .secure(cookieSecure)       // 로컬: false, 운영: true
+                    .sameSite(cookieSameSite)   // 로컬: Lax, 운영: None
                     .path("/")
                     .maxAge(Duration.ofMinutes(30))
+                    .domain(cookieDomain)       // 로컬: null, 운영: .qqup.ai.kr
                     .build();
 
-            ResponseCookie refreshCookie = ResponseCookie
-                    .from("refreshToken", result.refreshToken())
+            ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", result.refreshToken())
                     .httpOnly(true)
-                    .secure(true)        // TODO : 운영 https면 true로
-                    .sameSite("None")      // 운영 cross-site면 None + secure(true)
-                    .domain(".qqup.ai.kr")
+                    .secure(cookieSecure)
+                    .sameSite(cookieSameSite)
                     .path("/")
-                    .maxAge(Duration.ofMinutes(30))
+                    .maxAge(Duration.ofDays(14))
+                    .domain(cookieDomain)
                     .build();
 
             // body에는 accessToken을 내려줌 (프론트는 메모리에만 저장)

@@ -17,6 +17,10 @@ spring:
 
     # 쿠키 설정
     jwt:
+      cookie:
+        domain: .qqup.ai.kr # 프론트/백엔드 도메인 공유
+        secure: true        # HTTPS 필수
+        samesite: None      # 크로스 도메인 허용
       secret: 4612a10be28cdbb14c3be6b18e3396d902a4dcc967c733718d7b80092738551a
       access-exp-ms: 1800000      # 30분
       refresh-exp-ms: 1209600000  # 14일
