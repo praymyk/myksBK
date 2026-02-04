@@ -33,7 +33,7 @@ public class Ticket {
     @Column(length = 20)
     private TicketStatus status;
 
-    @Column(name= "merged_into_tick")
+    @Column(name= "merged_into_ticket_id")
     private Long mergedIntoTick;
 
     private String title;
