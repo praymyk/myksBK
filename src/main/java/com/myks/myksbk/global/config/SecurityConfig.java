@@ -56,6 +56,7 @@ public class SecurityConfig {
         // 1. 프론트엔드 주소
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:3000",
+                "http://localhost:8080",
                 "https://qqup.ai.kr",
                 "https://www.qqup.ai.kr"
         ));
