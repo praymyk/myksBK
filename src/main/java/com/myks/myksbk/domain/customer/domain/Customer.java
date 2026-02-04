@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Table(name = "customers")
-@EntityListeners(AuditingEntityListener.class) // 날짜 자동 주입 리스너
+@EntityListeners(AuditingEntityListener.class)
 public class Customer {
 
     @Id
@@ -25,7 +25,7 @@ public class Customer {
     private String email;
 
     @Enumerated(EnumType.STRING)
-    private CustomerStatus status; // Enum으로 관리 추천
+    private CustomerStatus status;
 
     @CreatedDate // 생성 시 자동으로 현재 시간 주입
     @Column(name = "created_at", updatable = false)

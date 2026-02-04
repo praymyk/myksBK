@@ -46,6 +46,9 @@ public class CustomerController {
         return ResponseEntity.ok(PagedResponse.from(result));
     }
 
-    @GetMapping("/ping")
-    public String ping() { return "ok"; }
+    @GetMapping("/{id}")
+    public ResponseEntity<CustomerDto.Response> getCustomer(@PathVariable Long id) {
+        CustomerDto.Response response = customerService.getCustomerById(id);
+        return ResponseEntity.ok(response);
+    }
 }

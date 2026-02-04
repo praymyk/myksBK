@@ -1,7 +1,9 @@
 package com.myks.myksbk.domain.ticket.service;
+import com.myks.myksbk.domain.ticket.domain.Ticket;
 import com.myks.myksbk.domain.ticket.domain.TicketEvent;
 import com.myks.myksbk.domain.ticket.dto.TicketEventDto;
 import com.myks.myksbk.domain.ticket.repository.TicketEventRepository;
+import com.myks.myksbk.domain.ticket.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -16,6 +18,7 @@ import java.util.List;
 public class TicketEventService {
 
     private final TicketEventRepository ticketEventRepository;
+    private final TicketRepository ticketRepository;
 
     public TicketEventDto.ListResponse getTicketEvents(Long ticketId, int page, int pageSize) {
         PageRequest pageable = PageRequest.of(Math.max(0, page - 1), pageSize);
@@ -34,22 +37,6 @@ public class TicketEventService {
                 .build();
     }
 
-    @Transactional
-    public Long createTicketEvent(TicketEventDto.CreateRequest request) {
-        TicketEvent event = TicketEvent.builder()
-                .ticketId(request.ticketId())
-                .companyId(request.companyId())
-                .eventType(request.eventType())
-                .channel(request.channel())
-                .authorUserId(request.authorUserId())
-                .customerId(request.customerId())
-                .content(request.content())
-                .meta(request.meta())
-                .build();
-
-        return ticketEventRepository.save(event).getId();
-    }
-
     private TicketEventDto.Response toResponse(TicketEvent e) {
         return TicketEventDto.Response.builder()
                 .id(e.getId())
@@ -64,4 +51,25 @@ public class TicketEventService {
                 .createdAt(e.getCreatedAt())
                 .build();
     }
+
+    @Transactional
+    public Long createTicketEvent(Long ticketId, TicketEventDto.CreateRequest request) {
+
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 티켓입니다."));
+
+        TicketEvent event = TicketEvent.builder()
+                .ticketId(ticket.getId())
+                .companyId(ticket.getCompanyId())
+                .eventType(request.eventType())
+                .channel(request.channel())
+                .authorUserId(request.authorUserId())
+                .customerId(request.customerId())
+                .content(request.content())
+                .meta(request.meta())
+                .build();
+
+        return ticketEventRepository.save(event).getId();
+    }
 }
+

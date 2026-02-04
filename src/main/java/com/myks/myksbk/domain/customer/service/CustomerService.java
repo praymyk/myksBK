@@ -66,4 +66,21 @@ public class CustomerService {
         return customerRepository.findAll(spec, pageable)
                 .map(CustomerDto.Response::from);
     }
+
+    public CustomerDto.Response getCustomerById(Long id) {
+        Customer customer = customerRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 고객입니다. id=" + id));
+
+        return toResponse(customer);
+    }
+
+    private CustomerDto.Response toResponse(Customer customer) {
+        return CustomerDto.Response.builder()
+                .id(customer.getId())
+                .name(customer.getName())
+                .email(customer.getEmail())
+                .status(customer.getStatus().name())
+                .createdAt(customer.getCreatedAt())
+                .build();
+    }
 }

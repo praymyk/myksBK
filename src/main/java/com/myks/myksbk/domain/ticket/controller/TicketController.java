@@ -64,7 +64,7 @@ public class TicketController {
             @PathVariable Long id,
             @RequestBody TicketEventDto.CreateRequest request
     ) {
-        Long createdId = ticketEventService.createTicketEvent(request);
+        Long createdId = ticketEventService.createTicketEvent(id, request);
         return ResponseEntity.ok(createdId);
     }
 }
