@@ -1,19 +1,17 @@
 package com.myks.myksbk.domain.customer.domain;
 
+import com.myks.myksbk.global.domain.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @Setter
 @Table(name = "customers")
 @EntityListeners(AuditingEntityListener.class)
-public class Customer {
+public class Customer extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,8 +24,4 @@ public class Customer {
 
     @Enumerated(EnumType.STRING)
     private CustomerStatus status;
-
-    @CreatedDate // 생성 시 자동으로 현재 시간 주입
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
 }

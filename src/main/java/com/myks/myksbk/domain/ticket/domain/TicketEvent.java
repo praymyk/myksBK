@@ -1,14 +1,12 @@
 package com.myks.myksbk.domain.ticket.domain;
 
+import com.myks.myksbk.global.domain.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.AllArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -17,7 +15,7 @@ import java.time.LocalDateTime;
 @Builder
 @Table(name = "ticket_events")
 @EntityListeners(AuditingEntityListener.class)
-public class TicketEvent {
+public class TicketEvent extends BaseTimeEntity {
 
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -47,7 +45,4 @@ public class TicketEvent {
     @Column(columnDefinition = "json")
     private String meta;
 
-    @CreatedDate
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
 }

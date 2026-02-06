@@ -13,7 +13,7 @@ public interface TicketEventRepository extends JpaRepository<TicketEvent, Long> 
         SELECT e 
         FROM TicketEvent e 
         JOIN Ticket t ON e.ticketId = t.id 
-        WHERE t.id = :ticketId OR t.mergedIntoTick = :ticketId 
+        WHERE t.id = :ticketId OR t.mergedIntoTicket = :ticketId 
         ORDER BY e.createdAt DESC, e.id DESC
     """)
     Page<TicketEvent> findEventsByTicketCluster(@Param("ticketId") Long ticketId, Pageable pageable);

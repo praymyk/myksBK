@@ -1,5 +1,6 @@
 package com.myks.myksbk.domain.ticket.domain;
 
+import com.myks.myksbk.global.domain.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -14,7 +15,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Table(name = "tickets")
 @EntityListeners(AuditingEntityListener.class)
-public class Ticket {
+public class Ticket extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,7 +35,7 @@ public class Ticket {
     private TicketStatus status;
 
     @Column(name= "merged_into_ticket_id")
-    private Long mergedIntoTick;
+    private Long mergedIntoTicket;
 
     private String title;
 
@@ -50,12 +51,4 @@ public class Ticket {
 
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
-
-    @CreatedDate
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
 }

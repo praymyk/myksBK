@@ -1,20 +1,15 @@
 package com.myks.myksbk.domain.company.domain;
 
+import com.myks.myksbk.global.domain.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @NoArgsConstructor
 @Table(name = "companies")
-@EntityListeners(AuditingEntityListener.class) // 날짜 자동 관리
-public class Company {
+public class Company extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,11 +22,4 @@ public class Company {
     @Enumerated(EnumType.STRING)
     private CompanyStatus status;
 
-    @CreatedDate
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
-    @LastModifiedDate
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
 }
