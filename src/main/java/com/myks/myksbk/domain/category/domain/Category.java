@@ -31,7 +31,7 @@ public class Category extends BaseTimeEntity {
     @JoinColumn(name = "parent_id")
     private Category parent;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TINYINT UNSIGNED")
     private Integer level;
 
     @Column(nullable = false)
