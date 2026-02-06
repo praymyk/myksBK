@@ -34,10 +34,10 @@ public class Category extends BaseTimeEntity {
     @Column(nullable = false, columnDefinition = "TINYINT UNSIGNED")
     private Integer level;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(name = "sort_order", nullable = false)
+    @Column(name = "sort_order", nullable = false, columnDefinition = "int unsigned")
     private Integer sortOrder;
 
     @Column(name = "is_active", nullable = false)
