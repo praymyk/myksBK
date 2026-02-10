@@ -27,7 +27,7 @@ jwt:
     secure: false      # HTTP 허용
     samesite: Lax      # 같은 도메인(localhost)끼리만 통신
   secret: 4612a10be28cdbb14c3be6b18e3396d902a4dcc967c733718d7b80092738551a
-  access-exp-ms: 18000      # 30분
+  access-exp-ms: 1800000      # 30분
   refresh-exp-ms: 1209600000  # 14일
   issuer: myks
   refresh-cookie-name: refreshToken

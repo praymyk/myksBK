@@ -1,17 +1,19 @@
 package com.myks.myksbk.domain.ai.service;
 
-// 작성하신 DTO 패키지 경로 (정확히 맞춰주세요)
-import com.myks.myksbk.domain.ai.dto.GeminiDto;
-import com.myks.myksbk.global.dto.TemplateAiDto;
+import com.myks.myksbk.domain.ai.dto.DignityAiDto;
+import com.myks.myksbk.domain.ai.dto.GeminiApiDto;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -26,8 +28,8 @@ public class AiGenerationService {
 
     private final RestClient restClient = RestClient.create();
 
-    public String generateTemplate(TemplateAiDto.GenerateRequest request) {
-        String systemInstruction = getSystemInstruction(request.getKind());
+    public String generateTemplate(com.myks.myksbk.domain.ai.dto.TemplateAiDto.GenerateRequest request) {
+        String systemInstruction = getSystemInstruction(request.kind());
 
         // 프롬프트 강화: 가드레일 및 예시 추가
         String finalPrompt = String.format("""
@@ -45,38 +47,10 @@ public class AiGenerationService {
             [작성된 템플릿]:
             """,
                 systemInstruction,
-                request.getPrompt() // 사용자의 입력을 따옴표로 감싸서 명령어로 인식되는 것을 방지
+                request.prompt()
         );
 
         return callGeminiApi(finalPrompt);
-    }
-
-    private String callGeminiApi(String prompt) {
-        try {
-
-            GeminiDto.GeminiRequest requestBody = new GeminiDto.GeminiRequest(prompt);
-
-            URI uri = UriComponentsBuilder.fromUri(URI.create(apiUrl))
-                    .queryParam("key", apiKey)
-                    .build()
-                    .toUri();
-
-            GeminiDto.GeminiResponse response = restClient.post()
-                    .uri(uri)
-                    .body(requestBody)
-                    .retrieve()
-                    .body(GeminiDto.GeminiResponse.class);
-
-            if (response != null && !response.candidates().isEmpty()) {
-                return response.candidates().get(0).getText();
-            }
-
-            return "AI 응답을 받아오지 못했습니다.";
-
-        } catch (Exception e) {
-            log.error("Gemini API 호출 중 오류 발생", e);
-            return "죄송합니다. AI 서비스 연결에 실패했습니다. (" + e.getMessage() + ")";
-        }
     }
 
     private String getSystemInstruction(String kind) {
@@ -99,5 +73,116 @@ public class AiGenerationService {
             default:
                 return "상담 업무 보조 AI입니다. 요청에 맞는 비즈니스 템플릿을 작성하세요.";
         }
+    }
+
+    /**
+     * 품위 유지비 분석 생성 메서드
+     */
+    public String generateDignityAnalysis(DignityAiDto.GenerateRequest request) {
+
+        // 1. 데이터 가공 (월 유지비 계산 등)
+        long currentTotal = calculateTotalMonthly(request.currentItems());
+        long futureTotal = calculateTotalMonthly(request.futureItems());
+        long diff = futureTotal - currentTotal;
+
+        String currentListStr = formatItems(request.currentItems());
+        String futureListStr = formatItems(request.futureItems());
+
+        // 2. 시스템 페르소나 정의 (팩트 폭격기 상담사)
+        String systemInstruction = """
+            당신은 냉철하고 유머러스하며, 가끔은 비꼬기도 하는 '개인 자산 관리 컨설턴트'입니다.
+            사용자의 소비 패턴, 특히 '월 유지비(할부 및 구독)'를 분석하여 뼈 때리는 조언을 해야 합니다.
+            말투는 친근한 친구처럼 '반말'을 사용하세요.
+            """;
+
+        // 3. 최종 프롬프트 조합
+        // 주의: JSON 응답을 강제하기 위해 예시와 제약조건을 명확히 줍니다.
+        String finalPrompt = String.format("""
+            %s
+            
+            [분석 대상 데이터]
+            1. 현재 상태
+               - 아이템: %s
+               - 총 월 유지비: %d원
+            2. 미래 시뮬레이션 (변경 후)
+               - 아이템: %s
+               - 총 월 유지비: %d원
+               - 월 변동액: %d원 (%s)
+            
+            [지시사항]
+            1. 위 데이터를 비교 분석하여 사용자의 소비 습관을 평가하세요.
+            2. 절대 서론이나 설명, 마크다운 코드블록(```json)을 붙이지 말고, **오직 순수 JSON 문자열만** 출력하세요.
+            3. 응답 포맷은 아래와 같아야 합니다:
+               {
+                 "dignityLevel": "평가된 등급 이름 (예: 파산 직전의 얼리어답터, 스마트한 미니멀리스트)",
+                 "roastComment": "소비 변화에 대한 냉철하고 위트 있는 팩트 폭력 코멘트 (반말)",
+                 "comparisonAnalysis": "비용 증감 원인 분석 및 구체적인 조언 (150자 이내)"
+               }
+            
+            [JSON 출력]:
+            """,
+                systemInstruction,
+                currentListStr, currentTotal,
+                futureListStr, futureTotal,
+                diff, (diff > 0 ? "증가" : "감소")
+        );
+
+        // 4. API 호출 및 결과 정제
+        String response = callGeminiApi(finalPrompt);
+        return cleanJsonOutput(response);
+    }
+
+    // --- 내부 헬퍼 메서드 ---
+    private String callGeminiApi(String prompt) {
+        try {
+            // 1. 공용 DTO 사용 (GeminiApiDto.Request)
+            GeminiApiDto.Request requestBody = new GeminiApiDto.Request(prompt);
+
+            URI uri = UriComponentsBuilder.fromUri(URI.create(apiUrl))
+                    .queryParam("key", apiKey)
+                    .build()
+                    .toUri();
+
+            // 2. 공용 DTO로 응답 받기 (GeminiApiDto.Response)
+            GeminiApiDto.Response response = restClient.post()
+                    .uri(uri)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(requestBody)
+                    .retrieve()
+                    .body(GeminiApiDto.Response.class);
+
+            // 3. 헬퍼 메서드로 텍스트 추출
+            if (response != null) {
+                return response.getText();
+            }
+
+            return "AI 응답 없음";
+
+        } catch (Exception e) {
+            log.error("Gemini API Error", e);
+            return "AI 서비스 오류 발생";
+        }
+    }
+
+    // Gemini가 가끔 ```json ... ``` 형태로 줄 때가 있어서 이를 제거하는 메서드
+    private String cleanJsonOutput(String text) {
+        if (text == null) return "{}";
+        return text.replace("```json", "")
+                .replace("```", "")
+                .trim();
+    }
+
+    private long calculateTotalMonthly(List<DignityAiDto.ItemDto> items) {
+        if (items == null) return 0;
+        return items.stream()
+                .mapToLong(i -> (i.lifespan() > 0) ? i.price() / i.lifespan() : 0)
+                .sum();
+    }
+
+    private String formatItems(List<DignityAiDto.ItemDto> items) {
+        if (items == null || items.isEmpty()) return "없음";
+        return items.stream()
+                .map(i -> String.format("%s(%d원/%d개월)", i.name(), i.price(), i.lifespan()))
+                .collect(Collectors.joining(", "));
     }
 }
