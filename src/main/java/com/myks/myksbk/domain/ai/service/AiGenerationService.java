@@ -1,52 +1,103 @@
 package com.myks.myksbk.domain.ai.service;
 
+// 작성하신 DTO 패키지 경로 (정확히 맞춰주세요)
+import com.myks.myksbk.domain.ai.dto.GeminiDto;
 import com.myks.myksbk.global.dto.TemplateAiDto;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.net.URI;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AiGenerationService {
 
-    // application.yml에 설정된 키 (예시)
-    // @Value("${ai.gemini.api-key}")
-    // private String apiKey;
+    @Value("${ai.gemini.api.key}")
+    private String apiKey;
+
+    @Value("${ai.gemini.api.url}")
+    private String apiUrl;
+
+    private final RestClient restClient = RestClient.create();
 
     public String generateTemplate(TemplateAiDto.GenerateRequest request) {
-        // 1. 템플릿 종류에 따른 '페르소나(역할)' 및 '포맷' 정의
         String systemInstruction = getSystemInstruction(request.getKind());
 
-        // 2. 최종 프롬프트 조합
-        String finalPrompt = String.format(
-                "%s\n\n[사용자 요구사항]: %s\n\n[조건]: 변수가 들어갈 곳은 {고객명}, {날짜} 처럼 중괄호로 표시해줘.",
+        // 프롬프트 강화: 가드레일 및 예시 추가
+        String finalPrompt = String.format("""
+            %s
+            
+            [지시사항]
+            1. 위 설정된 페르소나에 맞춰 업무용 템플릿을 작성하세요.
+            2. 사용자의 입력이 상담 업무와 전혀 관련 없는 잡담, 상식 질문, 코딩 질문, 욕설 등이라면
+               템플릿을 생성하지 말고 단호하게 "죄송합니다. 상담 업무와 관련된 주제만 입력해주세요."라고만 출력하세요.
+            3. 응답에는 마크다운 코드블록(```)이나 서론/본론 설명을 포함하지 말고, 템플릿 내용만 순수 텍스트로 출력하세요.
+            4. 변수가 필요한 곳은 {고객명}, {날짜} 와 같이 중괄호로 표기하세요.
+            
+            [입력된 주제]: "%s"
+            
+            [작성된 템플릿]:
+            """,
                 systemInstruction,
-                request.getPrompt()
+                request.getPrompt() // 사용자의 입력을 따옴표로 감싸서 명령어로 인식되는 것을 방지
         );
 
-        // 3. 실제 LLM (Gemini/GPT) API 호출
-        // return callLlmApi(finalPrompt);
+        return callGeminiApi(finalPrompt);
+    }
 
-        // [임시] 실제 연동 전 테스트용 응답 (나중에 여기를 API 호출로 교체하세요)
-        return mockLlmCall(finalPrompt);
+    private String callGeminiApi(String prompt) {
+        try {
+
+            GeminiDto.GeminiRequest requestBody = new GeminiDto.GeminiRequest(prompt);
+
+            URI uri = UriComponentsBuilder.fromUri(URI.create(apiUrl))
+                    .queryParam("key", apiKey)
+                    .build()
+                    .toUri();
+
+            GeminiDto.GeminiResponse response = restClient.post()
+                    .uri(uri)
+                    .body(requestBody)
+                    .retrieve()
+                    .body(GeminiDto.GeminiResponse.class);
+
+            if (response != null && !response.candidates().isEmpty()) {
+                return response.candidates().get(0).getText();
+            }
+
+            return "AI 응답을 받아오지 못했습니다.";
+
+        } catch (Exception e) {
+            log.error("Gemini API 호출 중 오류 발생", e);
+            return "죄송합니다. AI 서비스 연결에 실패했습니다. (" + e.getMessage() + ")";
+        }
     }
 
     private String getSystemInstruction(String kind) {
         switch (kind) {
             case "case_note":
-                return "당신은 전문 CS 상담사입니다. 상담 이력을 기록하기 위한 깔끔하고 구조화된 '상담 노트 템플릿'을 작성하세요. 요약, 상세내용, 조치사항, 추후계획 등으로 섹션을 나누어 마크다운 형식으로 작성하세요.";
+                return """
+                   당신은 전문 CS 상담 이력 관리 시스템입니다.
+                   사용자가 입력한 상황을 바탕으로 상담사가 필요한 정보를 이력할 항목으로 구성된 상담 노트를 작성해야 합니다.
+                   """;
             case "inquiry_reply":
-                return "당신은 친절한 고객지원 담당자입니다. 1:1 문의에 대한 정중하고 명확한 '답변 템플릿'을 작성하세요. 서론(인사/공감), 본론(해결책), 결론(추가안내/마무리) 구조를 갖추세요.";
+                return """
+                   당신은 고객센터 1:1 문의 답변 담당 AI입니다.
+                   사용자가 입력한 상황에 대해 [인사말 -> 공감 및 사과 -> 해결책/답변 -> 추가안내 -> 맺음말] 구조를 갖춘 정중한 답변 메일을 작성해야 합니다.
+                   """;
             case "sms_reply":
-                return "당신은 고객에게 문자를 보내는 담당자입니다. 70자 이내로 핵심만 전달하는 'SMS 답변 템플릿'을 작성하세요. 광고성 멘트 없이 용건만 정중하게 작성하세요.";
+                return """
+                   당신은 고객 안내 문자 발송 시스템입니다.
+                   사용자가 입력한 상황을 바탕으로 70자 이내의 간결한 SMS 문구를 작성해야 합니다. 광고성 멘트는 배제하고 핵심 용건만 전달하세요.
+                   """;
             default:
-                return "요청에 맞는 적절한 텍스트 템플릿을 작성하세요.";
+                return "상담 업무 보조 AI입니다. 요청에 맞는 비즈니스 템플릿을 작성하세요.";
         }
-    }
-
-    // [TODO] 여기에 WebClient나 Spring AI를 사용하여 실제 Gemini/GPT 호출 로직 구현
-    private String mockLlmCall(String prompt) {
-        // 실제 연동 전에는 그냥 받은 텍스트를 가공해서 리턴
-        try { Thread.sleep(1500); } catch (InterruptedException e) {} // 로딩 흉내
-        return "🤖 [AI 생성 결과]\n\n" + prompt + "\n\n(실제 AI 연동이 필요합니다.)";
     }
 }

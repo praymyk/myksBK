@@ -7,15 +7,18 @@ spring:
       activate:
         on-profile: default # 로컬에서 실행 시
 
-  ai:
-    openai:
+ai:
+  openai:
+    api-key: ${OPENAI_API_KEY:test}
+    # (선택) 모델 지정 가능 (기본값: gpt-3.5-turbo)
+    chat:
+      options:
+        model: gpt-4o
 
-      api-key: ${OPENAI_API_KEY:test}
-
-      # (선택) 모델 지정 가능 (기본값: gpt-3.5-turbo)
-      chat:
-        options:
-          model: gpt-4o
+  gemini:
+    api:
+      key: "AIzaSyA60a157VWxznKsIhHXX6WFGSnAih9oqE4"
+      url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
 # 쿠키 설정
 jwt:
