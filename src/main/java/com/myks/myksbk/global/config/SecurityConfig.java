@@ -34,15 +34,29 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // CORS 설정을 명시적으로 연결
+                // 1. CORS 설정
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
+                // 2. CSRF 비활성화
                 .csrf(AbstractHttpConfigurer::disable)
+
+                // 3. API 접근 권한 설정
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
-                        // CorsUtils 줄은 이제 필요 없습니다. (.cors()가 알아서 처리함)
                         .anyRequest().authenticated()
                 )
+
+                // 4. 예외 처리 (인증 실패 시 401 반환)
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED); // 401
+                            response.setContentType("application/json");
+                            response.setCharacterEncoding("UTF-8");
+                            response.getWriter().write("{\"message\": \"인증이 필요합니다.\", \"code\": \"UNAUTHORIZED\"}");
+                        })
+                )
+
+                // 5. JWT 필터 추가
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

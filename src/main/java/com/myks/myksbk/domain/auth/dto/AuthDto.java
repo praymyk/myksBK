@@ -17,7 +17,7 @@ public class AuthDto {
         private UserPreferences preferences;
     }
 
-    // 3. 내정보 확인 ( 내 프로필 용 )
+    // 3. 내정보 확인 (프로필용)
     @Data
     @Builder
     public static class UserInfo {
@@ -35,11 +35,13 @@ public class AuthDto {
         private boolean darkMode;
     }
 
-    // 4. 내정보 확인 ( 공용 )
+    // 4. 내정보 확인 (공용)
     @Data
     @Builder
     public static class MeResponse {
         private UserInfo user;
         private UserPreferences preferences;
     }
+
+    public record Response(String message) {}
 }

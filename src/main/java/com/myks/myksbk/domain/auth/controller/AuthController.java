@@ -7,10 +7,15 @@ import com.myks.myksbk.domain.user.domain.User;
 import com.myks.myksbk.domain.user.domain.UserPreference;
 import com.myks.myksbk.domain.user.repository.UserPreferenceRepository;
 import com.myks.myksbk.domain.user.repository.UserRepository;
+import com.myks.myksbk.global.jwt.JwtTokenProvider;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -18,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
+import java.util.Arrays;
 
 @Slf4j
 @RestController
@@ -28,9 +34,10 @@ public class AuthController {
     private final AuthService authService;
     private final UserRepository userRepository;
     private final UserPreferenceRepository userPreferenceRepository;
+    private final JwtTokenProvider jwtTokenProvider;
 
     // --- [설정값 주입] ---
-    @Value("${jwt.cookie.domain:}") // 값이 없으면 null/빈 문자열 처리
+    @Value("${jwt.cookie.domain:}")
     private String cookieDomain;
 
     @Value("${jwt.cookie.secure}")
@@ -108,12 +115,11 @@ public class AuthController {
     private ResponseCookie createCookie(String name, String value, Duration maxAge) {
         ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
                 .httpOnly(true)
-                .secure(cookieSecure)       // 환경변수 적용
-                .sameSite(cookieSameSite)   // 환경변수 적용
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .path("/")
                 .maxAge(maxAge);
 
-        // 로컬 환경 등에서 domain 값이 없을 경우, 아예 설정을 안 해야(null) 브라우저가 localhost로 인식함
         if (StringUtils.hasText(cookieDomain)) {
             builder.domain(cookieDomain);
         }
@@ -122,4 +128,36 @@ public class AuthController {
     }
 
     record ErrorResponse(String message) {}
+
+
+    // 리플래시 토큰
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(HttpServletRequest request, HttpServletResponse response) {
+
+        String refreshToken = getCookieValue(request, "refreshToken");
+
+        if (refreshToken == null || !jwtTokenProvider.validateToken(refreshToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid Refresh Token");
+        }
+
+        Long userId = jwtTokenProvider.getUserId(refreshToken);
+        String email = jwtTokenProvider.getEmail(refreshToken);
+
+        String newAccessToken = jwtTokenProvider.createAccessToken(userId, email);
+
+        ResponseCookie accessCookie = createCookie("accessToken", newAccessToken, Duration.ofMinutes(30));
+
+        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+        // Body에 토큰 반환
+        return ResponseEntity.ok(new AuthDto.Response(newAccessToken));
+    }
+
+    private String getCookieValue(HttpServletRequest req, String name) {
+        if (req.getCookies() == null) return null;
+        return Arrays.stream(req.getCookies())
+                .filter(c -> c.getName().equals(name))
+                .findFirst()
+                .map(Cookie::getValue)
+                .orElse(null);
+    }
 }
