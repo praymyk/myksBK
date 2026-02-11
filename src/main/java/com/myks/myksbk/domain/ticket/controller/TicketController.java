@@ -7,6 +7,7 @@ import com.myks.myksbk.domain.ticket.service.TicketEventService;
 import com.myks.myksbk.domain.ticket.service.TicketService;
 import com.myks.myksbk.global.api.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -46,8 +47,10 @@ public class TicketController {
         return ApiResponse.ok(detail);
     }
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<String> handleNotFound(IllegalArgumentException e) {
-        return ResponseEntity.status(404).body(e.getMessage());
+    public ResponseEntity<ApiResponse<Void>> handleNotFound(IllegalArgumentException e) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.fail("NOT_FOUND", e.getMessage()));
     }
 
     @GetMapping("/tickets/{id}/events")

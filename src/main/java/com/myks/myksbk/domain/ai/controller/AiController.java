@@ -18,13 +18,11 @@ public class AiController {
     private final AiGenerationService aiService;
 
     @PostMapping("/generate/template")
-    public ResponseEntity<?> generateTemplate(@RequestBody TemplateAiDto.GenerateRequest request) {
+    public ApiResponse<Map<String, String>> generateTemplate(
+            @RequestBody TemplateAiDto.GenerateRequest request
+    ) {
         String generatedContent = aiService.generateTemplate(request);
-
-        return ResponseEntity.ok(Map.of(
-                "ok", true,
-                "data", Map.of("content", generatedContent)
-        ));
+        return ApiResponse.ok(Map.of("content", generatedContent));
     }
 
     @PostMapping("/generate/dignity")

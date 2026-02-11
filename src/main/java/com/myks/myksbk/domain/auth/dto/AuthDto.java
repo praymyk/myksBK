@@ -43,5 +43,5 @@ public class AuthDto {
         private UserPreferences preferences;
     }
 
-    public record Response(String message) {}
+    public record Response(String accessToken) {}
 }
