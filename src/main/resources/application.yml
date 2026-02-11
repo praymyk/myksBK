@@ -18,8 +18,8 @@ ai:
   gemini:
     api:
       key: "AIzaSyA60a157VWxznKsIhHXX6WFGSnAih9oqE4"
-      url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
-
+#      url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+      url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
 # 쿠키 설정
 jwt:
   cookie:

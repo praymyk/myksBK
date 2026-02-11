@@ -5,6 +5,7 @@ import com.myks.myksbk.domain.ticket.dto.TicketDto;
 import com.myks.myksbk.domain.ticket.dto.TicketEventDto;
 import com.myks.myksbk.domain.ticket.service.TicketEventService;
 import com.myks.myksbk.domain.ticket.service.TicketService;
+import com.myks.myksbk.global.api.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,7 +19,7 @@ public class TicketController {
     private final TicketEventService ticketEventService;
 
     @GetMapping("/tickets")
-    public ResponseEntity<TicketDto.TicketListResponse> getTickets(
+    public ApiResponse<TicketDto.TicketListResponse> getTickets(
             @RequestParam Long companyId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") String pageSize,
@@ -36,13 +37,13 @@ public class TicketController {
                 sortParam
         );
 
-        return ResponseEntity.ok(result);
+        return ApiResponse.ok(result);
     }
 
     @GetMapping("/tickets/{id}")
-    public ResponseEntity<TicketDto.TicketDetailResponse> getTicketDetail(@PathVariable Long id) {
+    public ApiResponse<TicketDto.TicketDetailResponse> getTicketDetail(@PathVariable Long id) {
         TicketDto.TicketDetailResponse detail = ticketService.getTicketDetail(id);
-        return ResponseEntity.ok(detail);
+        return ApiResponse.ok(detail);
     }
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<String> handleNotFound(IllegalArgumentException e) {
@@ -50,21 +51,21 @@ public class TicketController {
     }
 
     @GetMapping("/tickets/{id}/events")
-    public ResponseEntity<TicketEventDto.ListResponse> getTicketEvents(
+    public ApiResponse<TicketEventDto.ListResponse> getTicketEvents(
             @PathVariable Long id,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize
     ) {
         TicketEventDto.ListResponse result = ticketEventService.getTicketEvents(id, page, pageSize);
-        return ResponseEntity.ok(result);
+        return ApiResponse.ok(result);
     }
 
     @PostMapping("/tickets/{id}/events")
-    public ResponseEntity<Long> createTicketEvent(
+    public ApiResponse<Long> createTicketEvent(
             @PathVariable Long id,
             @RequestBody TicketEventDto.CreateRequest request
     ) {
         Long createdId = ticketEventService.createTicketEvent(id, request);
-        return ResponseEntity.ok(createdId);
+        return ApiResponse.ok(createdId);
     }
 }

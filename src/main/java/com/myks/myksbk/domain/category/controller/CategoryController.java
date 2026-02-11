@@ -1,9 +1,9 @@
 package com.myks.myksbk.domain.category.controller;
 
+import com.myks.myksbk.global.api.ApiResponse; // import 확인!
 import com.myks.myksbk.domain.category.dto.CategoryDto;
 import com.myks.myksbk.domain.category.service.CategoryService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -13,21 +13,21 @@ public class CategoryController {
 
     private final CategoryService categoryService;
 
-    // 카테고리 페이지 데이터 조회
+    // 1. 조회 API
     @GetMapping("/page-data")
-    public ResponseEntity<CategoryDto.PageResponse> getCategoryPageData(
+    public ApiResponse<CategoryDto.PageResponse> getCategoryPageData(
             @RequestParam Long companyId
     ) {
-        CategoryDto.PageResponse response = categoryService.getCategoryPageData(companyId);
-        return ResponseEntity.ok(response);
+        return ApiResponse.ok(categoryService.getCategoryPageData(companyId));
     }
 
-    // 카테고리 트리 일괄 저장
+    // 2. 저장 API
     @PostMapping("/tree")
-    public ResponseEntity<Void> replaceCategoryTree(
+    public ApiResponse<Void> replaceCategoryTree(
             @RequestBody CategoryDto.TreeSaveRequest request
     ) {
         categoryService.replaceCategoryTree(request);
-        return ResponseEntity.ok().build();
+
+        return ApiResponse.success();
     }
 }

@@ -3,6 +3,7 @@ package com.myks.myksbk.domain.ai.controller;
 import com.myks.myksbk.domain.ai.dto.DignityAiDto;
 import com.myks.myksbk.domain.ai.dto.TemplateAiDto;
 import com.myks.myksbk.domain.ai.service.AiGenerationService;
+import com.myks.myksbk.global.api.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,14 +28,10 @@ public class AiController {
     }
 
     @PostMapping("/generate/dignity")
-    public ResponseEntity<DignityAiDto.GenerateResponse> generateDignity(@RequestBody DignityAiDto.GenerateRequest request) {
-
-        // 서비스에서 이미 JSON String 형태로 받아옴
+    public ApiResponse<DignityAiDto.AiContent> generateDignity(
+            @RequestBody DignityAiDto.GenerateRequest request
+    ) {
         String jsonContent = aiService.generateDignityAnalysis(request);
-
-        return ResponseEntity.ok(
-                new DignityAiDto.GenerateResponse(true, new DignityAiDto.AiContent(jsonContent))
-        );
+        return ApiResponse.ok(new DignityAiDto.AiContent(jsonContent));
     }
-
 }

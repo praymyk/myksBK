@@ -14,3 +14,4 @@ spring:
     hibernate:
       ddl-auto: update  # 개발 편의상 테이블 자동 생성/수정
     show-sql: true      # 쿼리 로그 보기
+    open-in-view: false

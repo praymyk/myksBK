@@ -3,13 +3,13 @@ package com.myks.myksbk.domain.customer.controller;
 import com.myks.myksbk.domain.customer.dto.CustomerDto;
 import com.myks.myksbk.domain.customer.dto.CustomerSearchCondition;
 import com.myks.myksbk.domain.customer.service.CustomerService;
+import com.myks.myksbk.global.api.ApiResponse;
 import com.myks.myksbk.global.dto.PagedResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,15 +20,15 @@ public class CustomerController {
     private final CustomerService customerService;
 
     @PostMapping
-    public ResponseEntity<CustomerDto.Response> createCustomer(@RequestBody CustomerDto.CreateRequest request) {
+    public ApiResponse<CustomerDto.Response> createCustomer(@RequestBody CustomerDto.CreateRequest request) {
 
         CustomerDto.Response newCustomer = customerService.createCustomer(request);
 
-        return ResponseEntity.ok(newCustomer);
+        return ApiResponse.ok(newCustomer);
     }
 
     @GetMapping
-    public ResponseEntity<PagedResponse<CustomerDto.Response>> getCustomers(
+    public ApiResponse<PagedResponse<CustomerDto.Response>> getCustomers(
             CustomerSearchCondition condition,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
@@ -43,12 +43,12 @@ public class CustomerController {
 
         Page<CustomerDto.Response> result = customerService.searchCustomers(condition, pageable);
 
-        return ResponseEntity.ok(PagedResponse.from(result));
+        return ApiResponse.ok(PagedResponse.from(result));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CustomerDto.Response> getCustomer(@PathVariable Long id) {
+    public ApiResponse<CustomerDto.Response> getCustomer(@PathVariable Long id) {
         CustomerDto.Response response = customerService.getCustomerById(id);
-        return ResponseEntity.ok(response);
+        return ApiResponse.ok(response);
     }
 }

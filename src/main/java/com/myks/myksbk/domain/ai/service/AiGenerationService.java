@@ -80,7 +80,7 @@ public class AiGenerationService {
      */
     public String generateDignityAnalysis(DignityAiDto.GenerateRequest request) {
 
-        // 1. 데이터 가공 (월 유지비 계산 등)
+        // 1. 기초 데이터 계산
         long currentTotal = calculateTotalMonthly(request.currentItems());
         long futureTotal = calculateTotalMonthly(request.futureItems());
         long diff = futureTotal - currentTotal;
@@ -88,48 +88,77 @@ public class AiGenerationService {
         String currentListStr = formatItems(request.currentItems());
         String futureListStr = formatItems(request.futureItems());
 
-        // 2. 시스템 페르소나 정의 (팩트 폭격기 상담사)
+        // 2. 재정 팩트 구성
+        String financialFact = "";
+
+        if (request.monthlySalary() != null && request.monthlySalary() > 0) {
+            double ratio = (double) futureTotal / request.monthlySalary() * 100.0;
+            financialFact = String.format("월급(%,d원) 대비 유지비 비율: %.1f%%", request.monthlySalary(), ratio);
+        } else {
+            financialFact = "월급 정보 없음 (대한민국 2030 평균 소득 약 300만원 기준 절대평가 요망)";
+        }
+
+        // 3. 변동 팩트 구성
+        String changeFact = "";
+        if (diff == 0) {
+            changeFact = "변동 없음 (0원). 사용자가 아이템 구성을 바꾸지 않음.";
+        } else {
+            changeFact = String.format("%s (%,d원)", diff > 0 ? "지출 증가" : "지출 감소", diff);
+        }
+
+        // 4. [Logic] 시스템 페르소나 & 판단 기준 (여기가 핵심!)
+        // 자바 코드가 아닌 '프롬프트'에 판단 로직을 서술합니다.
         String systemInstruction = """
-            당신은 냉철하고 유머러스하며, 가끔은 비꼬기도 하는 '개인 자산 관리 컨설턴트'입니다.
-            사용자의 소비 패턴, 특히 '월 유지비(할부 및 구독)'를 분석하여 뼈 때리는 조언을 해야 합니다.
-            말투는 친근한 친구처럼 '반말'을 사용하세요.
+            당신은 냉철하고 눈치가 빠른 '자산 관리 형사(Detective)' 컨셉의 AI입니다.
+            제공된 [재정 팩트]를 보고 스스로 판단하여 팩트 폭력을 날리세요.
+            사용자가 뀹에게 커피를 사줄 만큼 재정적 여유를 가지게 만드는게 목표입니다.
+            
+            [말투 규칙]
+            1. 가능하면 반말(음슴체): 끝은 '~했어?', '~함', '~음', '~임'
+            2. **'다솜'**: (부정/파산) 과소비하거나, 망했거나, 멍청한 짓을 했을 때.
+            
+            [AI 판단 가이드라인 (이 기준대로 생각하세요)]
+            1. **월급 대비 비율 평가 기준:**
+               - **30% 초과**: '다솜' 확정. 당장 망한다고 비난.
+               - **10% ~ 30%**: 뀹에게 커피를 사주기 어려운 위험 구간. 경고.
+               - **10% 미만**: 뀹에게 커피를 사줄수 있는 칭찬 구간. 아주 훌륭함.
+               - **(예외) 0원:** 말이 안 됨. 숨기는 거 자백하라고 취조.
+               
+            2. **'변동 없음'일 때의 평가 로직:**
+               - **현재 상태가 '다솜(과소비)'인데 변동 없음:** "이미 다솜했는데 아무것도 안 함? 포기함?"이라고 게으름을 질타.
+               - **현재 상태가 '(절약)'인데 변동 없음:** 뀹에게 매달 커피 사줘도 괜찮다고 칭찬하며 현상 유지 지지.
             """;
 
-        // 3. 최종 프롬프트 조합
-        // 주의: JSON 응답을 강제하기 위해 예시와 제약조건을 명확히 줍니다.
+        // 5. 최종 프롬프트 조합
         String finalPrompt = String.format("""
             %s
             
-            [분석 대상 데이터]
-            1. 현재 상태
-               - 아이템: %s
-               - 총 월 유지비: %d원
-            2. 미래 시뮬레이션 (변경 후)
-               - 아이템: %s
-               - 총 월 유지비: %d원
-               - 월 변동액: %d원 (%s)
+            [재정 팩트 체크]
+            1. 재정 상태: %s
+            2. 변동 사항: %s
+            
+            [소비 내역 상세]
+            - 현재: %s (총 %d원)
+            - 미래: %s (총 %d원)
             
             [지시사항]
-            1. 위 데이터를 비교 분석하여 사용자의 소비 습관을 평가하세요.
-            2. 절대 서론이나 설명, 마크다운 코드블록(```json)을 붙이지 말고, **오직 순수 JSON 문자열만** 출력하세요.
-            3. 응답 포맷은 아래와 같아야 합니다:
+            1. 위 [AI 판단 가이드라인]을 기준으로 데이터를 해석하여 JSON을 생성하세요.
+            2. 서론/설명 없이 **오직 순수 JSON 문자열만** 출력하세요.
+            3. 응답 포맷:
                {
-                 "dignityLevel": "평가된 등급 이름 (예: 파산 직전의 얼리어답터, 스마트한 미니멀리스트)",
-                 "roastComment": "소비 변화에 대한 냉철하고 위트 있는 팩트 폭력 코멘트 (반말)",
-                 "comparisonAnalysis": "비용 증감 원인 분석 및 구체적인 조언 (150자 이내)"
+                 "dignityLevel": "평가된 등급 (예: 다솜시치화 직전, 뀹에게 커피살수있는 문명인)",
+                 "roastComment": "상황에 맞는 팩트 폭력 및 선생님 멘트 (말투 규칙 준수)",
+                 "comparisonAnalysis": "원인 분석 및 조언 (150자 이내)"
                }
-            
-            [JSON 출력]:
             """,
                 systemInstruction,
+                financialFact,
+                changeFact,
                 currentListStr, currentTotal,
-                futureListStr, futureTotal,
-                diff, (diff > 0 ? "증가" : "감소")
+                futureListStr, futureTotal
         );
 
-        // 4. API 호출 및 결과 정제
-        String response = callGeminiApi(finalPrompt);
-        return cleanJsonOutput(response);
+        return cleanJsonOutput(callGeminiApi(finalPrompt));
     }
 
     // --- 내부 헬퍼 메서드 ---
@@ -164,7 +193,7 @@ public class AiGenerationService {
         }
     }
 
-    // Gemini가 가끔 ```json ... ``` 형태로 줄 때가 있어서 이를 제거하는 메서드
+    // Gemini ```json ... ``` 형태로 반납할 경우 제거 메서드
     private String cleanJsonOutput(String text) {
         if (text == null) return "{}";
         return text.replace("```json", "")
