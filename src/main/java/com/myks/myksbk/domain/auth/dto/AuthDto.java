@@ -43,5 +43,7 @@ public class AuthDto {
         private UserPreferences preferences;
     }
 
-    public record Response(String accessToken) {}
+    public record TokenRefreshResponse(String accessToken) {}
+
+    public static record TokenResponse(String accessToken, LoginResponse profile) {}
 }

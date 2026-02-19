@@ -9,22 +9,17 @@ import com.myks.myksbk.domain.user.repository.UserPreferenceRepository;
 import com.myks.myksbk.domain.user.repository.UserRepository;
 import com.myks.myksbk.global.api.ApiResponse;
 import com.myks.myksbk.global.jwt.JwtTokenProvider;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
-import java.util.Arrays;
 
 @Slf4j
 @RestController
@@ -35,6 +30,7 @@ public class AuthController {
     private final AuthService authService;
     private final UserRepository userRepository;
     private final UserPreferenceRepository userPreferenceRepository;
+
     private final JwtTokenProvider jwtTokenProvider;
 
     // --- [설정값 주입] ---
@@ -49,34 +45,30 @@ public class AuthController {
 
     // 로그인
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthDto.LoginResponse>> login(@RequestBody AuthDto.LoginRequest request) {
+    public ApiResponse<AuthDto.TokenResponse> login(
+            @RequestBody AuthDto.LoginRequest request,
+            HttpServletResponse response
+    ) {
         LoginResult result = authService.login(request);
 
-        ResponseCookie accessCookie = createCookie("accessToken", result.accessToken(), Duration.ofMinutes(30));
         ResponseCookie refreshCookie = createCookie("refreshToken", result.refreshToken(), Duration.ofDays(14));
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, accessCookie.toString())
-                .header(HttpHeaders.SET_COOKIE, refreshCookie.toString())
-                .body(ApiResponse.ok(result.response()));
+        return ApiResponse.ok(new AuthDto.TokenResponse(result.accessToken(), result.response()));
     }
 
     // 로그아웃
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout() {
-
-        ResponseCookie clearAccess = createCookie("accessToken", "", Duration.ZERO);
+    public ApiResponse<Void> logout(HttpServletResponse response) {
         ResponseCookie clearRefresh = createCookie("refreshToken", "", Duration.ZERO);
+        response.addHeader(HttpHeaders.SET_COOKIE, clearRefresh.toString());
 
-        return ResponseEntity.noContent()
-                .header(HttpHeaders.SET_COOKIE, clearAccess.toString())
-                .header(HttpHeaders.SET_COOKIE, clearRefresh.toString())
-                .build();
+        return ApiResponse.success();
     }
 
     // 내 정보 조회
     @GetMapping("/me")
-    public ApiResponse<AuthDto.LoginResponse> me(@AuthenticationPrincipal Long userId) {
+    public ApiResponse<AuthDto.MeResponse> me(@AuthenticationPrincipal Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 
@@ -84,7 +76,7 @@ public class AuthController {
                 .map(UserPreference::isDarkMode)
                 .orElse(false);
 
-        AuthDto.LoginResponse body = AuthDto.LoginResponse.builder()
+        AuthDto.MeResponse body = AuthDto.MeResponse.builder()
                 .user(AuthDto.UserInfo.builder()
                         .id(user.getId())
                         .companyId(user.getCompanyId())
@@ -105,11 +97,12 @@ public class AuthController {
     private ResponseCookie createCookie(String name, String value, Duration maxAge) {
         ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
                 .httpOnly(true)
-                .secure(cookieSecure)
-                .sameSite(cookieSameSite)
+                .secure(cookieSecure)       // 환경변수 적용
+                .sameSite(cookieSameSite)   // 환경변수 적용
                 .path("/")
                 .maxAge(maxAge);
 
+        // 로컬 환경 등에서 domain 값이 없을 경우, 아예 설정을 안 해야(null) 브라우저가 localhost로 인식함
         if (StringUtils.hasText(cookieDomain)) {
             builder.domain(cookieDomain);
         }
@@ -117,33 +110,44 @@ public class AuthController {
         return builder.build();
     }
 
-    // 리플래시 토큰
+    // 리프레시 토큰으로 액세스 토큰 재발급
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<AuthDto.Response>> refresh(HttpServletRequest request, HttpServletResponse response) {
+    public ApiResponse<AuthDto.TokenRefreshResponse> refresh(
+            jakarta.servlet.http.HttpServletRequest request,
+            HttpServletResponse response
+    ) {
         String refreshToken = getCookieValue(request, "refreshToken");
 
-        if (refreshToken == null || !jwtTokenProvider.validateToken(refreshToken)) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.fail("INVALID_REFRESH_TOKEN", "Invalid Refresh Token"));
+        if (!StringUtils.hasText(refreshToken)) {
+            throw new com.myks.myksbk.global.exception.UnauthorizedException("리프레시 토큰이 존재하지 않습니다. 다시 로그인해주세요.");
         }
 
-        Long userId = jwtTokenProvider.getUserId(refreshToken);
-        String email = jwtTokenProvider.getEmail(refreshToken);
+        try {
+            if (!jwtTokenProvider.validateToken(refreshToken)) {
+                throw new com.myks.myksbk.global.exception.UnauthorizedException("유효하지 않은 리프레시 토큰입니다.");
+            }
 
-        String newAccessToken = jwtTokenProvider.createAccessToken(userId, email);
+            Long userId = jwtTokenProvider.getUserId(refreshToken);
+            String email = jwtTokenProvider.getEmail(refreshToken);
 
-        ResponseCookie accessCookie = createCookie("accessToken", newAccessToken, Duration.ofMinutes(30));
-        response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
+            String newAccessToken = jwtTokenProvider.createAccessToken(userId, email);
 
-        return ResponseEntity.ok(ApiResponse.ok(new AuthDto.Response(newAccessToken)));
+            return ApiResponse.ok(new AuthDto.TokenRefreshResponse(newAccessToken));
+
+        } catch (Exception e) {
+            log.warn("Refresh Token 검증 실패: {}", e.getMessage());
+            throw new com.myks.myksbk.global.exception.UnauthorizedException("리프레시 토큰이 만료되었거나 손상되었습니다.");
+        }
     }
 
-    private String getCookieValue(HttpServletRequest req, String name) {
+    private String getCookieValue(jakarta.servlet.http.HttpServletRequest req, String name) {
         if (req.getCookies() == null) return null;
-        return Arrays.stream(req.getCookies())
+        return java.util.Arrays.stream(req.getCookies())
                 .filter(c -> c.getName().equals(name))
                 .findFirst()
-                .map(Cookie::getValue)
+                .map(jakarta.servlet.http.Cookie::getValue)
                 .orElse(null);
     }
+
 }
+
