@@ -2,9 +2,11 @@ package com.myks.myksbk.domain.user.service;
 
 import com.myks.myksbk.domain.user.domain.User;
 import com.myks.myksbk.domain.user.domain.UserStatus;
+import com.myks.myksbk.domain.user.dto.SignupRequestDto;
 import com.myks.myksbk.domain.user.dto.UserMeDto;
 import com.myks.myksbk.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class UserService {
 
+    private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
 
     public UserMeDto.Response getMe(Long userId) {
@@ -55,5 +58,33 @@ public class UserService {
                 throw new IllegalArgumentException("잘못된 회원 상태값입니다: " + request.getStatus());
             }
         }
+    }
+
+    @Transactional
+    public void createUser(SignupRequestDto request) {
+
+        // 1. 아이디(account) 중복 검증
+        if (userRepository.existsByAccount(request.getAccount())) {
+            // 실무에서는 CustomException (예: DuplicateAccountException)을 던지는 것을 권장합니다.
+            throw new IllegalArgumentException("이미 사용 중인 아이디입니다.");
+        }
+
+        // 2. 이메일(email) 중복 검증
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException("이미 가입된 이메일입니다.");
+        }
+
+        String encodedPassword = passwordEncoder.encode(request.getPassword());
+
+        User newUser = User.builder()
+                .companyId(request.getCompanyId())
+                .account(request.getAccount())
+                .name(request.getName())
+                .email(request.getEmail())
+                .passwordHash(encodedPassword)
+                .status(UserStatus.ACTIVE)
+                .build();
+
+        userRepository.save(newUser);
     }
 }

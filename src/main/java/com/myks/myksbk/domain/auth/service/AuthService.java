@@ -32,7 +32,7 @@ public class AuthService {
         User user = userRepository.findByAccountOrEmail(request.username())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 계정입니다."));
 
-        if (user.getStatus() != UserStatus.active) {
+        if (user.getStatus() != UserStatus.ACTIVE) {
             throw new IllegalStateException("비활성화된 계정입니다.");
         }
 

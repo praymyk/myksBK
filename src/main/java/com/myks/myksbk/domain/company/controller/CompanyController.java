@@ -20,7 +20,7 @@ public class CompanyController {
 
     @GetMapping("/active")
     public ApiResponse<List<CompanyDto.SelectResponse>> getActiveCompanies() {
-        return ApiResponse.ok(companyService.getActiveCompanies(CompanyStatus.active));
+        return ApiResponse.ok(companyService.getActiveCompanies(CompanyStatus.ACTIVE));
     }
 
     /**

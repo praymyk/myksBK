@@ -5,16 +5,20 @@ import com.myks.myksbk.domain.auth.dto.LoginResult;
 import com.myks.myksbk.domain.auth.service.AuthService;
 import com.myks.myksbk.domain.user.domain.User;
 import com.myks.myksbk.domain.user.domain.UserPreference;
+import com.myks.myksbk.domain.user.dto.SignupRequestDto;
 import com.myks.myksbk.domain.user.repository.UserPreferenceRepository;
 import com.myks.myksbk.domain.user.repository.UserRepository;
+import com.myks.myksbk.domain.user.service.UserService;
 import com.myks.myksbk.global.api.ApiResponse;
 import com.myks.myksbk.global.jwt.JwtTokenProvider;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.util.StringUtils;
@@ -28,6 +32,7 @@ import java.time.Duration;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserService userService;
     private final UserRepository userRepository;
     private final UserPreferenceRepository userPreferenceRepository;
 
@@ -147,6 +152,14 @@ public class AuthController {
                 .findFirst()
                 .map(jakarta.servlet.http.Cookie::getValue)
                 .orElse(null);
+    }
+
+    @PostMapping("/signup")
+    public ResponseEntity<ApiResponse<Void>> signup(@Valid @RequestBody SignupRequestDto request) {
+
+        userService.createUser(request);
+
+        return ResponseEntity.ok(ApiResponse.success());
     }
 
 }

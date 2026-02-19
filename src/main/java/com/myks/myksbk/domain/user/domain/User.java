@@ -1,6 +1,7 @@
 package com.myks.myksbk.domain.user.domain;
 
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -24,7 +25,7 @@ public class User {
     public Long companyId;
 
     @Column(nullable = false, unique = true)
-    private String account; // 로그인 ID
+    private String account; // 로그인용 ID
 
     @Column(name = "public_id")
     private String publicId;
@@ -57,4 +58,14 @@ public class User {
 
     @Column(name = "deactivated_at")
     private LocalDateTime deactivatedAt;
+
+    @Builder
+    public User(Long companyId, String account, String name, String email, String passwordHash, UserStatus status) {
+        this.companyId = companyId;
+        this.account = account;
+        this.name = name;
+        this.email = email;
+        this.passwordHash = passwordHash;
+        this.status = status != null ? status : UserStatus.ACTIVE;
+    }
 }
