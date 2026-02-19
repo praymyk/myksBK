@@ -3,6 +3,7 @@ name: Java CI/CD with Gradle & Docker
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 permissions:
   contents: read
