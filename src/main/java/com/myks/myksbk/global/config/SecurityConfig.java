@@ -42,7 +42,13 @@ public class SecurityConfig {
 
                 // 3. API 접근 권한 설정
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+                        .requestMatchers(
+                                "/api/auth/login",
+                                "/api/auth/refresh",
+                                "/api/auth/logout",
+                                "/api/auth/signup",
+                                "/api/auth/check-account",
+                                "/api/auth/check-email").permitAll()
                         .anyRequest().authenticated()
                 )
 

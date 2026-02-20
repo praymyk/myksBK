@@ -87,4 +87,13 @@ public class UserService {
 
         userRepository.save(newUser);
     }
+
+    @Transactional(readOnly = true)
+    public boolean isAccountDuplicate(String account) {
+        return userRepository.existsByAccount(account);
+    }
+    @Transactional(readOnly = true)
+    public boolean isEmailDuplicate(String email) {
+        return userRepository.existsByEmail(email);
+    }
 }

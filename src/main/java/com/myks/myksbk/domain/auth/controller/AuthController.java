@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -156,8 +157,29 @@ public class AuthController {
 
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<Void>> signup(@Valid @RequestBody SignupRequestDto request) {
-
         userService.createUser(request);
+
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @GetMapping("/check-account")
+    public ResponseEntity<ApiResponse<Void>> checkAccount(@RequestParam("account") String account) {
+        if (userService.isAccountDuplicate(account)) {
+
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.fail("DUPLICATE_ACCOUNT", "이미 사용 중인 아이디입니다."));
+        }
+
+        return ResponseEntity.ok(ApiResponse.success());
+    }
+
+    @GetMapping("/check-email")
+    public ResponseEntity<ApiResponse<Void>> checkEmail(@RequestParam("email") String email) {
+        if (userService.isEmailDuplicate(email)) {
+
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(ApiResponse.fail("DUPLICATE_EMAIL", "이미 가입된 이메일입니다."));
+        }
 
         return ResponseEntity.ok(ApiResponse.success());
     }
