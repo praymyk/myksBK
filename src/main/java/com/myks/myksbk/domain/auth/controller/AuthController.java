@@ -10,7 +10,9 @@ import com.myks.myksbk.domain.user.repository.UserPreferenceRepository;
 import com.myks.myksbk.domain.user.repository.UserRepository;
 import com.myks.myksbk.domain.user.service.UserService;
 import com.myks.myksbk.global.api.ApiResponse;
+import com.myks.myksbk.global.exception.UnauthorizedException;
 import com.myks.myksbk.global.jwt.JwtTokenProvider;
+import com.myks.myksbk.global.security.CustomUserPrincipal;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -65,16 +67,32 @@ public class AuthController {
 
     // 로그아웃
     @PostMapping("/logout")
-    public ApiResponse<Void> logout(HttpServletResponse response) {
+    public ApiResponse<Void> logout(
+            @AuthenticationPrincipal CustomUserPrincipal me,
+            HttpServletResponse response
+    ) {
         ResponseCookie clearRefresh = createCookie("refreshToken", "", Duration.ZERO);
         response.addHeader(HttpHeaders.SET_COOKIE, clearRefresh.toString());
+
+        if (me == null || me.getId() == null) {
+            // 이미 로그아웃 상태거나 토큰 없음 → 쿠키만 지우고 성공 처리
+            return ApiResponse.success();
+        }
+
+        User user = userRepository.findById(me.getId())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
+
+        user.bumpTokenVersion();
+        userRepository.save(user);
 
         return ApiResponse.success();
     }
 
     // 내 정보 조회
     @GetMapping("/me")
-    public ApiResponse<AuthDto.MeResponse> me(@AuthenticationPrincipal Long userId) {
+    public ApiResponse<AuthDto.MeResponse> me(@AuthenticationPrincipal CustomUserPrincipal me) {
+        Long userId = me.getId();
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
 
@@ -119,8 +137,7 @@ public class AuthController {
     // 리프레시 토큰으로 액세스 토큰 재발급
     @PostMapping("/refresh")
     public ApiResponse<AuthDto.TokenRefreshResponse> refresh(
-            jakarta.servlet.http.HttpServletRequest request,
-            HttpServletResponse response
+            jakarta.servlet.http.HttpServletRequest request
     ) {
         String refreshToken = getCookieValue(request, "refreshToken");
 
@@ -129,20 +146,36 @@ public class AuthController {
         }
 
         try {
-            if (!jwtTokenProvider.validateToken(refreshToken)) {
+            if (!jwtTokenProvider.validateToken(refreshToken)
+                    || !jwtTokenProvider.validateTokenType(refreshToken, "refresh")) {
                 throw new com.myks.myksbk.global.exception.UnauthorizedException("유효하지 않은 리프레시 토큰입니다.");
             }
 
             Long userId = jwtTokenProvider.getUserId(refreshToken);
             String email = jwtTokenProvider.getEmail(refreshToken);
+            int tokenTv = jwtTokenProvider.getTokenVersion(refreshToken);
 
-            String newAccessToken = jwtTokenProvider.createAccessToken(userId, email);
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new com.myks.myksbk.global.exception.UnauthorizedException("존재하지 않는 사용자입니다."));
+
+            // 토큰 버전 불일치 = 폐기된 토큰
+            Integer dbTv = user.getTokenVersion(); // Integer라 가정
+            if (dbTv == null || dbTv.intValue() != tokenTv) {
+                throw new UnauthorizedException("이미 만료된 토큰입니다. 다시 로그인해주세요.");
+            }
+
+            // tv 포함 새 accessToken 발급
+            String newAccessToken = jwtTokenProvider.createAccessToken(userId, email, user.getTokenVersion());
 
             return ApiResponse.ok(new AuthDto.TokenRefreshResponse(newAccessToken));
 
+        } catch (UnauthorizedException e) {
+            // 의도적으로 막은 케이스(버전 불일치 등)
+            log.info("Refresh rejected: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
-            log.warn("Refresh Token 검증 실패: {}", e.getMessage());
-            throw new com.myks.myksbk.global.exception.UnauthorizedException("리프레시 토큰이 만료되었거나 손상되었습니다.");
+            log.warn("Refresh Token 검증 실패", e);
+            throw new UnauthorizedException("리프레시 토큰이 만료되었거나 손상되었습니다.");
         }
     }
 

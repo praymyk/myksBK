@@ -21,11 +21,11 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "companyId", nullable = false)
-    public Long companyId;
+    @Column(name = "company_id", nullable = false)
+    private Long companyId;
 
     @Column(nullable = false, unique = true)
-    private String account; // 로그인용 ID
+    private String account;
 
     @Column(name = "public_id")
     private String publicId;
@@ -45,8 +45,15 @@ public class User {
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
-    @Column(columnDefinition = "varchar(20) default 'active'")
+    @Column(nullable = false, length = 20)
     private UserStatus status;
+
+    // { 로그아웃이 필요한 이벤트 발생시 올리기 }
+    @Column(name = "token_version", nullable = false)
+    private int tokenVersion = 0;
+
+    @Column(name = "last_logout_at")
+    private LocalDateTime lastLogoutAt;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -67,5 +74,15 @@ public class User {
         this.email = email;
         this.passwordHash = passwordHash;
         this.status = status != null ? status : UserStatus.ACTIVE;
+        this.tokenVersion = 0;
+    }
+
+    public int getTokenVersion() {
+        return tokenVersion;
+    }
+
+    public void bumpTokenVersion() {
+        this.tokenVersion++;
+        this.lastLogoutAt = LocalDateTime.now();
     }
 }

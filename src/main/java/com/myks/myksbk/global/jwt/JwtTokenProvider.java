@@ -32,15 +32,17 @@ public class JwtTokenProvider {
         this.issuer = issuer;
     }
 
-    public String createAccessToken(Long userId, String email) {
-        return createToken(userId, email, "access", accessExpMs);
+    // tv 추가
+    public String createAccessToken(Long userId, String email, int tokenVersion) {
+        return createToken(userId, email, tokenVersion, "access", accessExpMs);
     }
 
-    public String createRefreshToken(Long userId, String email) {
-        return createToken(userId, email, "refresh", refreshExpMs);
+    // tv 추가
+    public String createRefreshToken(Long userId, String email, int tokenVersion) {
+        return createToken(userId, email, tokenVersion, "refresh", refreshExpMs);
     }
 
-    private String createToken(Long userId, String email, String typ, long expMs) {
+    private String createToken(Long userId, String email, int tokenVersion, String typ, long expMs) {
         Date now = new Date();
         Date exp = new Date(now.getTime() + expMs);
 
@@ -49,6 +51,7 @@ public class JwtTokenProvider {
                 .setSubject(String.valueOf(userId))
                 .claim("email", email)
                 .claim("typ", typ)
+                .claim("tv", tokenVersion) // token version
                 .setIssuedAt(now)
                 .setExpiration(exp)
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -86,5 +89,11 @@ public class JwtTokenProvider {
 
     public String getEmail(String token) {
         return parseClaims(token).get("email", String.class);
+    }
+
+    // tv 꺼내기
+    public int getTokenVersion(String token) {
+        Integer tv = parseClaims(token).get("tv", Integer.class);
+        return (tv == null) ? 0 : tv;
     }
 }

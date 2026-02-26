@@ -44,8 +44,10 @@ public class AuthService {
                 .map(UserPreference::isDarkMode)
                 .orElse(false);
 
-        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail());
-        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail());
+        int tv = user.getTokenVersion();
+
+        String accessToken = jwtTokenProvider.createAccessToken(user.getId(), user.getEmail(), tv);
+        String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), user.getEmail(), tv);
 
         AuthDto.LoginResponse response = AuthDto.LoginResponse.builder()
                 .message("OK")

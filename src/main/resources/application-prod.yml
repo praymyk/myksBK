@@ -29,3 +29,9 @@ jwt:
 # 서버 포트 설정 (Prod는 8080)
 server:
   port: 8080
+
+app:
+  upload:
+    work-thumbnail-dir: /var/lib/myks/uploads/work-thumbnails
+  public:
+    base-url: https://api.qqup.ai.kr
