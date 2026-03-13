@@ -26,7 +26,7 @@ public class UserPreferenceService {
                 .orElse(UserPreferenceDto.Response.from(userId, false, 20));
     }
 
-    /** 사용자 설정 변경용 [ 초기 설정값 존재 하지 않아 있으면 수정 / 없으면 생성] */
+    /** 사용자 설정 변경용 [초기 설정값 있으면 수정 / 없으면 생성] */
     @Transactional
     public void upsertPreferences(Long userId, UserPreferenceDto.UpdateRequest request) {
         // 1. 유저 확인
