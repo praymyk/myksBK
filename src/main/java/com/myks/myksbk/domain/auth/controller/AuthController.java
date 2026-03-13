@@ -159,7 +159,7 @@ public class AuthController {
                     .orElseThrow(() -> new com.myks.myksbk.global.exception.UnauthorizedException("존재하지 않는 사용자입니다."));
 
             // 토큰 버전 불일치 = 폐기된 토큰
-            Integer dbTv = user.getTokenVersion(); // Integer라 가정
+            Integer dbTv = user.getTokenVersion();
             if (dbTv == null || dbTv.intValue() != tokenTv) {
                 throw new UnauthorizedException("이미 만료된 토큰입니다. 다시 로그인해주세요.");
             }

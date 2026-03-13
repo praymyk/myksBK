@@ -41,13 +41,13 @@ public class UserPreferenceService {
                         .defaultPageSize(20)
                         .build());
 
-        // 3. 값 업데이트 (null이 들어오면 기존 값 유지하거나 기본값 적용하는 로직)
+        // 3. 값 업데이트
         boolean newDarkMode = (request.darkMode() != null) ? request.darkMode() : preference.isDarkMode();
         int newPageSize = (request.defaultPageSize() != null) ? request.defaultPageSize() : 20;
 
         preference.update(newDarkMode, newPageSize);
 
-        // 4. 저장 (신규 생성일 때만 save 호출이 필수지만, 명시적으로 호출해도 무방)
+        // 4. 저장
         preferenceRepository.save(preference);
     }
 }
