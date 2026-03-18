@@ -1,5 +1,6 @@
 package com.myks.myksbk.domain.work.controller;
 
+import com.myks.myksbk.domain.work.dto.EpisodeSummaryResponse;
 import com.myks.myksbk.domain.work.dto.WorkCreateRequest;
 import com.myks.myksbk.domain.work.dto.WorkCreateResponse;
 import com.myks.myksbk.domain.work.dto.WorkSummaryResponse;
@@ -37,5 +38,12 @@ public class WorkController {
     @GetMapping(value = "/my", produces = "application/json")
     public ApiResponse<List<WorkSummaryResponse>> listMyWorks(@AuthenticationPrincipal CustomUserPrincipal me) {
         return ApiResponse.ok(workService.listMyWorks(me.getId()));
+    }
+
+    @GetMapping(value = "/{id}/episodes", produces = "application/json")
+    public ApiResponse<List<EpisodeSummaryResponse>> listEpisodes(
+            @PathVariable("id") Long workId
+    ) {
+        return ApiResponse.ok(workService.listEpisodes(workId));
     }
 }

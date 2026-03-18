@@ -2,11 +2,14 @@ package com.myks.myksbk.domain.work.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.myks.myksbk.domain.work.domain.Episode;
 import com.myks.myksbk.domain.work.domain.WorkStatus;
+import com.myks.myksbk.domain.work.dto.EpisodeSummaryResponse;
 import com.myks.myksbk.domain.work.dto.WorkCreateRequest;
 import com.myks.myksbk.domain.work.dto.WorkCreateResponse;
 import com.myks.myksbk.domain.work.domain.Work;
 import com.myks.myksbk.domain.work.dto.WorkSummaryResponse;
+import com.myks.myksbk.domain.work.repository.EpisodeRepository;
 import com.myks.myksbk.domain.work.repository.WorkRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +28,7 @@ import java.util.UUID;
 public class WorkService {
 
     private final WorkRepository workRepository;
+    private final EpisodeRepository episodeRepository;
     private final ObjectMapper objectMapper;
 
     @Value("${app.upload.work-thumbnail-dir}")
@@ -123,6 +127,21 @@ public class WorkService {
                         w.getThumbnailUrl(),
                         w.getCreatedAt(),
                         w.getUpdatedAt()
+                ))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<EpisodeSummaryResponse> listEpisodes(Long workId) {
+
+        List<Episode> episodes = episodeRepository.findByWorkIdOrderByEpisodeNoAsc(workId);
+
+        return episodes.stream()
+                .map(ep -> new EpisodeSummaryResponse(
+                        ep.getId(),
+                        ep.getEpisodeNo(),
+                        ep.getTitle(),
+                        ep.getStatus().name()
                 ))
                 .toList();
     }
