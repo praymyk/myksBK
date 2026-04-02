@@ -3,16 +3,17 @@ package com.myks.myksbk.domain.work.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.myks.myksbk.domain.work.domain.Episode;
-import com.myks.myksbk.domain.work.domain.WorkStatus;
-import com.myks.myksbk.domain.work.dto.EpisodeSummaryResponse;
-import com.myks.myksbk.domain.work.dto.WorkCreateRequest;
-import com.myks.myksbk.domain.work.dto.WorkCreateResponse;
 import com.myks.myksbk.domain.work.domain.Work;
-import com.myks.myksbk.domain.work.dto.WorkSummaryResponse;
-import com.myks.myksbk.domain.work.repository.EpisodeRepository;
+import com.myks.myksbk.domain.work.domain.WorkStatus;
+import com.myks.myksbk.domain.work.domain.EpisodeStatus;
 import com.myks.myksbk.domain.work.repository.WorkRepository;
+import com.myks.myksbk.domain.work.repository.EpisodeRepository;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.myks.myksbk.domain.work.dto.*;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -75,9 +76,8 @@ public class WorkService {
     }
 
     @Transactional
-    public String uploadThumbnail(Long workId, MultipartFile file) {
-        Work work = workRepository.findById(workId)
-                .orElseThrow(() -> new IllegalArgumentException("작품이 존재하지 않습니다."));
+    public String uploadThumbnail(Long workId, Long requesterUserId, MultipartFile file) {
+        Work work = validateOwnership(workId, requesterUserId);
 
         if (file.isEmpty()) throw new IllegalArgumentException("파일이 비어있습니다.");
         String ct = file.getContentType();
@@ -132,7 +132,8 @@ public class WorkService {
     }
 
     @Transactional(readOnly = true)
-    public List<EpisodeSummaryResponse> listEpisodes(Long workId) {
+    public List<EpisodeSummaryResponse> listEpisodes(Long workId, Long requesterUserId) {
+        validateOwnership(workId, requesterUserId);
 
         List<Episode> episodes = episodeRepository.findByWorkIdOrderByEpisodeNoAsc(workId);
 
@@ -144,5 +145,89 @@ public class WorkService {
                         ep.getStatus().name()
                 ))
                 .toList();
+    }
+
+    @Transactional
+    public Long createEpisode(Long workId, Long requesterUserId, EpisodeSaveRequest req) {
+        validateOwnership(workId, requesterUserId);
+
+        Integer lastNo = episodeRepository.findMaxEpisodeNoByWorkId(workId);
+        int maxNo = (lastNo == null) ? 0 : lastNo;
+
+        // 클라이언트가 보낸 번호가 유효(현재 MAX보다 큼)하면 사용하고,
+        // 번호가 없거나 중복(MAX 이하)이면 안전하게 MAX + 1 로 강제 덮어쓰기
+        int finalEpisodeNo = (req.episodeNo() != null && req.episodeNo() > maxNo)
+                ? req.episodeNo()
+                : maxNo + 1;
+
+        Episode episode = Episode.builder()
+                .workId(workId)
+                .episodeNo(finalEpisodeNo)
+                .title(req.title())
+                .rawText(req.rawText())
+                .status(req.status() != null ? req.status() : EpisodeStatus.DRAFT)
+                .build();
+
+        return episodeRepository.save(episode).getId();
+    }
+
+    @Transactional
+    public void updateEpisode(Long workId, Integer episodeNo, Long requesterUserId, EpisodeSaveRequest req) {
+        validateOwnership(workId, requesterUserId);
+
+        Episode episode = episodeRepository.findByWorkIdAndEpisodeNo(workId, episodeNo)
+                .orElseThrow(() -> new EntityNotFoundException("에피소드를 찾을 수 없습니다."));
+
+        // dirty checking
+        Episode updated = Episode.builder()
+                .id(episode.getId())
+                .workId(episode.getWorkId())
+                .episodeNo(episode.getEpisodeNo())
+                .title(req.title() != null ? req.title() : episode.getTitle())
+                .rawText(req.rawText() != null ? req.rawText() : episode.getRawText())
+                .status(req.status() != null ? req.status() : episode.getStatus())
+                .createdAt(episode.getCreatedAt())
+                .build();
+
+        episodeRepository.save(updated);
+    }
+
+    @Transactional(readOnly = true)
+    public WorkDetailResponse getWorkDetail(Long workId, Long requesterUserId) {
+        Work work = validateOwnership(workId, requesterUserId);
+
+        return new WorkDetailResponse(
+                work.getId(),
+                work.getCompanyId(),
+                work.getAuthorUserId(),
+                work.getTitle(),
+                work.getDescription(),
+                work.getMode(),
+                work.getAiImageEnabled(),
+                work.getStatus(),
+                work.getThumbnailUrl(),
+                parseTags(work.getTagsJson()),
+                work.getCreatedAt(),
+                work.getUpdatedAt()
+        );
+    }
+
+    public Work validateOwnership(Long workId, Long requesterUserId) {
+        Work work = workRepository.findById(workId)
+                .orElseThrow(() -> new EntityNotFoundException("작품이 존재하지 않습니다."));
+
+        if (!work.getAuthorUserId().equals(requesterUserId)) {
+            throw new AccessDeniedException("본인의 작품만 접근 가능합니다.");
+        }
+        return work;
+    }
+
+    private List<String> parseTags(String tagsJson) {
+        if (tagsJson == null || tagsJson.isBlank()) return List.of();
+        try {
+            return objectMapper.readValue(tagsJson, new TypeReference<List<String>>() {});
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 }
