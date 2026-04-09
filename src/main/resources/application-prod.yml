@@ -4,7 +4,7 @@ spring:
       on-profile: prod
 
   datasource:
-    url: jdbc:mysql://mykspj-mysql.cvacmycywd6n.ap-southeast-2.rds.amazonaws.com:3306/reactpj?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    url: jdbc:mysql://qqupdb.cvacmycywd6n.ap-southeast-2.rds.amazonaws.com:3306/reactpj?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: admin
     password: dhksthghdck2
     driver-class-name: com.mysql.cj.jdbc.Driver

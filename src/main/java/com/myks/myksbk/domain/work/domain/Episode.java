@@ -43,6 +43,9 @@ public class Episode {
     @Column(name = "paragraphs_json", columnDefinition = "JSON")
     private String paragraphsJson;
 
+    @Column(name = "anchors_json", columnDefinition = "JSON")
+    private String anchorsJson;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

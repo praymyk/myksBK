@@ -17,4 +17,6 @@ public interface EpisodeRepository extends JpaRepository<Episode, Long> {
     Integer findMaxEpisodeNoByWorkId(@Param("workId") Long workId);
 
     Optional<Episode> findByWorkIdAndEpisodeNo(Long workId, Integer episodeNo);
+
+    Optional<Episode> findByIdAndWorkId(Long id, Long workId);
 }

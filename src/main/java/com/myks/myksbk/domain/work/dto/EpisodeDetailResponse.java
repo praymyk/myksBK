@@ -1,14 +1,19 @@
 package com.myks.myksbk.domain.work.dto;
 
 import com.myks.myksbk.domain.work.domain.EpisodeStatus;
+import java.time.LocalDateTime;
 import java.util.List;
 
-public record EpisodeSaveRequest(
-        Integer episodeNo, // 프론트엔드에서 계산한 회차 번호 (서버에서 보정됨)
+public record EpisodeDetailResponse(
+        Long id,
+        Long workId,
+        Integer episodeNo,
         String title,
         String body,
         List<String> paragraphs,
         List<AnchorDto> anchors,
-        EpisodeStatus status
+        EpisodeStatus status,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
 ) {
 }

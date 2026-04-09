@@ -154,17 +154,26 @@ public class WorkService {
         Integer lastNo = episodeRepository.findMaxEpisodeNoByWorkId(workId);
         int maxNo = (lastNo == null) ? 0 : lastNo;
 
-        // 클라이언트가 보낸 번호가 유효(현재 MAX보다 큼)하면 사용하고,
-        // 번호가 없거나 중복(MAX 이하)이면 안전하게 MAX + 1 로 강제 덮어쓰기
         int finalEpisodeNo = (req.episodeNo() != null && req.episodeNo() > maxNo)
                 ? req.episodeNo()
                 : maxNo + 1;
+
+        String paragraphsJson = null;
+        String anchorsJson = null;
+        try {
+            if (req.paragraphs() != null) paragraphsJson = objectMapper.writeValueAsString(req.paragraphs());
+            if (req.anchors() != null) anchorsJson = objectMapper.writeValueAsString(req.anchors());
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("JSON 변환 실패", e);
+        }
 
         Episode episode = Episode.builder()
                 .workId(workId)
                 .episodeNo(finalEpisodeNo)
                 .title(req.title())
-                .rawText(req.rawText())
+                .rawText(req.body())
+                .paragraphsJson(paragraphsJson)
+                .anchorsJson(anchorsJson)
                 .status(req.status() != null ? req.status() : EpisodeStatus.DRAFT)
                 .build();
 
@@ -172,24 +181,68 @@ public class WorkService {
     }
 
     @Transactional
-    public void updateEpisode(Long workId, Integer episodeNo, Long requesterUserId, EpisodeSaveRequest req) {
+    public void updateEpisodeDetail(Long workId, Long episodeId, Long requesterUserId, EpisodeSaveRequest req) {
         validateOwnership(workId, requesterUserId);
 
-        Episode episode = episodeRepository.findByWorkIdAndEpisodeNo(workId, episodeNo)
+        Episode episode = episodeRepository.findByIdAndWorkId(episodeId, workId)
                 .orElseThrow(() -> new EntityNotFoundException("에피소드를 찾을 수 없습니다."));
 
-        // dirty checking
+        String paragraphsJson = null;
+        String anchorsJson = null;
+        try {
+            if (req.paragraphs() != null) paragraphsJson = objectMapper.writeValueAsString(req.paragraphs());
+            if (req.anchors() != null) anchorsJson = objectMapper.writeValueAsString(req.anchors());
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("JSON 변환 실패", e);
+        }
+
         Episode updated = Episode.builder()
                 .id(episode.getId())
                 .workId(episode.getWorkId())
                 .episodeNo(episode.getEpisodeNo())
                 .title(req.title() != null ? req.title() : episode.getTitle())
-                .rawText(req.rawText() != null ? req.rawText() : episode.getRawText())
+                .rawText(req.body() != null ? req.body() : episode.getRawText())
+                .paragraphsJson(req.paragraphs() != null ? paragraphsJson : episode.getParagraphsJson())
+                .anchorsJson(req.anchors() != null ? anchorsJson : episode.getAnchorsJson())
                 .status(req.status() != null ? req.status() : episode.getStatus())
                 .createdAt(episode.getCreatedAt())
                 .build();
 
         episodeRepository.save(updated);
+    }
+
+    @Transactional(readOnly = true)
+    public EpisodeDetailResponse getEpisodeDetail(Long workId, Long episodeId, Long requesterUserId) {
+        validateOwnership(workId, requesterUserId);
+
+        Episode episode = episodeRepository.findByIdAndWorkId(episodeId, workId)
+                .orElseThrow(() -> new EntityNotFoundException("에피소드를 찾을 수 없습니다."));
+
+        List<String> paragraphs = List.of();
+        List<AnchorDto> anchors = List.of();
+        try {
+            if (episode.getParagraphsJson() != null) {
+                paragraphs = objectMapper.readValue(episode.getParagraphsJson(), new TypeReference<List<String>>() {});
+            }
+            if (episode.getAnchorsJson() != null) {
+                anchors = objectMapper.readValue(episode.getAnchorsJson(), new TypeReference<List<AnchorDto>>() {});
+            }
+        } catch (JsonProcessingException e) {
+            // 파싱 실패 시 빈 리스트 반환 (또는 예외 처리)
+        }
+
+        return new EpisodeDetailResponse(
+                episode.getId(),
+                episode.getWorkId(),
+                episode.getEpisodeNo(),
+                episode.getTitle(),
+                episode.getRawText(),
+                paragraphs,
+                anchors,
+                episode.getStatus(),
+                episode.getCreatedAt(),
+                episode.getUpdatedAt()
+        );
     }
 
     @Transactional(readOnly = true)

@@ -63,14 +63,23 @@ public class WorkController {
         return ApiResponse.ok(workService.createEpisode(workId, me.getId(), req));
     }
 
-    @PutMapping(value = "/{id}/episodes/{episodeNo}", consumes = "application/json", produces = "application/json")
-    public ApiResponse<Void> updateEpisode(
+    @GetMapping(value = "/{id}/episodes/{episodeId}", produces = "application/json")
+    public ApiResponse<EpisodeDetailResponse> getEpisodeDetail(
             @PathVariable("id") Long workId,
-            @PathVariable("episodeNo") Integer episodeNo,
+            @PathVariable("episodeId") Long episodeId,
+            @AuthenticationPrincipal CustomUserPrincipal me
+    ) {
+        return ApiResponse.ok(workService.getEpisodeDetail(workId, episodeId, me.getId()));
+    }
+
+    @PutMapping(value = "/{id}/episodes/{episodeId}", consumes = "application/json", produces = "application/json")
+    public ApiResponse<Void> updateEpisodeDetail(
+            @PathVariable("id") Long workId,
+            @PathVariable("episodeId") Long episodeId,
             @AuthenticationPrincipal CustomUserPrincipal me,
             @RequestBody EpisodeSaveRequest req
     ) {
-        workService.updateEpisode(workId, episodeNo, me.getId(), req);
+        workService.updateEpisodeDetail(workId, episodeId, me.getId(), req);
         return ApiResponse.ok(null);
     }
 }
