@@ -51,7 +51,9 @@ public class AuthController {
     @Value("${jwt.cookie.samesite}")
     private String cookieSameSite;
 
-    // 로그인
+    /**
+     * 로그인 성공 시 access token 응답과 refresh token 쿠키를 함께 발급한다.
+     */
     @PostMapping("/login")
     public ApiResponse<AuthDto.TokenResponse> login(
             @RequestBody AuthDto.LoginRequest request,
@@ -65,25 +67,25 @@ public class AuthController {
         return ApiResponse.ok(new AuthDto.TokenResponse(result.accessToken(), result.response()));
     }
 
-    // 로그아웃
+    /**
+     * 로그아웃 시 refresh cookie를 제거하고, 식별 가능한 사용자의 tokenVersion을 증가시켜 기존 토큰을 무효화한다.
+     */
     @PostMapping("/logout")
     public ApiResponse<Void> logout(
             @AuthenticationPrincipal CustomUserPrincipal me,
+            jakarta.servlet.http.HttpServletRequest request,
             HttpServletResponse response
     ) {
         ResponseCookie clearRefresh = createCookie("refreshToken", "", Duration.ZERO);
         response.addHeader(HttpHeaders.SET_COOKIE, clearRefresh.toString());
 
-        if (me == null || me.getId() == null) {
-            // 이미 로그아웃 상태거나 토큰 없음 → 쿠키만 지우고 성공 처리
+        User logoutUser = resolveLogoutUser(me, request);
+        if (logoutUser == null) {
             return ApiResponse.success();
         }
 
-        User user = userRepository.findById(me.getId())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다."));
-
-        user.bumpTokenVersion();
-        userRepository.save(user);
+        logoutUser.bumpTokenVersion();
+        userRepository.save(logoutUser);
 
         return ApiResponse.success();
     }
@@ -117,7 +119,9 @@ public class AuthController {
         return ApiResponse.ok(body);
     }
 
-    // 쿠키 생성 메서드
+    /**
+     * refresh token 저장/삭제에 사용할 HttpOnly 쿠키를 생성한다.
+     */
     private ResponseCookie createCookie(String name, String value, Duration maxAge) {
         ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
                 .httpOnly(true)
@@ -134,7 +138,9 @@ public class AuthController {
         return builder.build();
     }
 
-    // 리프레시 토큰으로 액세스 토큰 재발급
+    /**
+     * refresh token 쿠키를 검증해 새 access token을 재발급한다.
+     */
     @PostMapping("/refresh")
     public ApiResponse<AuthDto.TokenRefreshResponse> refresh(
             jakarta.servlet.http.HttpServletRequest request
@@ -179,6 +185,43 @@ public class AuthController {
         }
     }
 
+    /**
+     * 로그아웃 대상 사용자를 access 인증 정보 또는 refresh token 쿠키에서 찾는다.
+     */
+    private User resolveLogoutUser(
+            CustomUserPrincipal me,
+            jakarta.servlet.http.HttpServletRequest request
+    ) {
+        if (me != null && me.getId() != null) {
+            return userRepository.findById(me.getId()).orElse(null);
+        }
+
+        String refreshToken = getCookieValue(request, "refreshToken");
+        if (!StringUtils.hasText(refreshToken)) {
+            return null;
+        }
+
+        try {
+            if (!jwtTokenProvider.validateToken(refreshToken)
+                    || !jwtTokenProvider.validateTokenType(refreshToken, "refresh")) {
+                return null;
+            }
+
+            Long userId = jwtTokenProvider.getUserId(refreshToken);
+            int tokenTv = jwtTokenProvider.getTokenVersion(refreshToken);
+
+            return userRepository.findById(userId)
+                    .filter(user -> user.getTokenVersion() == tokenTv)
+                    .orElse(null);
+        } catch (Exception e) {
+            log.info("Logout fallback via refresh token skipped: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 요청 쿠키에서 지정한 이름의 값을 조회한다.
+     */
     private String getCookieValue(jakarta.servlet.http.HttpServletRequest req, String name) {
         if (req.getCookies() == null) return null;
         return java.util.Arrays.stream(req.getCookies())
@@ -218,4 +261,3 @@ public class AuthController {
     }
 
 }
-
